@@ -28,6 +28,7 @@ export interface AuditLog {
 
 export interface DroneMedia {
   id: string;
+  ownerId: string; // Rastreia quem realizou o upload
   file?: File;
   name: string;
   type: 'image' | 'video';

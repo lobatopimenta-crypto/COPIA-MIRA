@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { DroneMedia } from '../types';
+import { DroneMedia, User } from '../types';
 import { reverseGeocode, searchAddress, geocodeAddress } from '../services/exifService';
 
 interface MediaDetailsModalProps {
   media: DroneMedia;
+  currentUser: User | null;
   onClose: () => void;
   onUpdate: (updated: DroneMedia) => void;
   onDelete: () => void;
@@ -15,6 +16,7 @@ interface MediaDetailsModalProps {
 
 const MediaDetailsModal: React.FC<MediaDetailsModalProps> = ({ 
   media, 
+  currentUser,
   onClose, 
   onUpdate, 
   onDelete, 
@@ -30,6 +32,9 @@ const MediaDetailsModal: React.FC<MediaDetailsModalProps> = ({
   const [showFullImage, setShowFullImage] = useState(fullscreenOnly);
   const searchTimeout = useRef<any>(null);
 
+  // Lógica de permissão: ADM tem acesso total, Operador apenas aos seus próprios arquivos
+  const canEdit = currentUser?.role === 'ADM' || media.ownerId === currentUser?.id;
+
   useEffect(() => {
     const fetchAddress = async () => {
       if (media.hasGps && media.latitude && media.longitude && !media.address) {
@@ -43,7 +48,7 @@ const MediaDetailsModal: React.FC<MediaDetailsModalProps> = ({
   }, [media]);
 
   const handleAddressChange = (val: string) => {
-    if (isAddressLocked) return;
+    if (isAddressLocked || !canEdit) return;
     setAddress(val);
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     if (val.length > 3) {
@@ -57,12 +62,13 @@ const MediaDetailsModal: React.FC<MediaDetailsModalProps> = ({
   };
 
   const selectSuggestion = (s: string) => {
-    if (isAddressLocked) return;
+    if (isAddressLocked || !canEdit) return;
     setAddress(s);
     setSuggestions([]);
   };
 
   const handleSave = async () => {
+    if (!canEdit) return;
     setIsSaving(true);
     let updatedMedia = { ...media, address, observation };
 
@@ -133,6 +139,11 @@ const MediaDetailsModal: React.FC<MediaDetailsModalProps> = ({
              <div className="flex-1 rounded-[2.5rem] overflow-hidden border shadow-inner relative group bg-black/40 border-white/10">
                 <img src={media.previewUrl} className="w-full h-full object-contain" />
              </div>
+             {!canEdit && (
+               <div className="mt-4 p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex items-center justify-center">
+                  <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest italic">Visualização Restrita: Apenas o proprietário ou gestores podem editar este ativo.</span>
+               </div>
+             )}
              <div className={`mt-6 grid grid-cols-2 gap-6 p-6 rounded-3xl border ${isDarkMode ? 'bg-slate-950/50 border-white/5' : 'bg-white border-slate-200'}`}>
                 <div className="flex flex-col">
                     <span className={`text-[8px] font-black uppercase tracking-widest mb-1.5 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Latitude (Y)</span>
@@ -153,8 +164,14 @@ const MediaDetailsModal: React.FC<MediaDetailsModalProps> = ({
                       {isLoadingAddress && <span className="text-[7px] text-blue-500 font-black animate-pulse uppercase">Geocodificando...</span>}
                       {isAddressLocked && <span className="text-[7px] text-emerald-500 font-black uppercase border border-emerald-500/20 px-2.5 py-1 rounded-lg bg-emerald-500/5">GPS Ativo</span>}
                    </div>
-                   <textarea value={address} onChange={(e) => handleAddressChange(e.target.value)} readOnly={isAddressLocked} placeholder={media.hasGps ? "Sincronizando coordenadas..." : "Insira o endereço para geocodificação..."} className={`w-full border rounded-[1.5rem] p-6 text-[11px] font-bold outline-none h-32 resize-none transition-all leading-relaxed ${isAddressLocked ? (isDarkMode ? 'bg-slate-800/50 border-emerald-500/10 text-slate-400' : 'bg-slate-50 border-emerald-500/10 text-slate-500') : (isDarkMode ? 'bg-slate-950 border-white/10 text-white focus:ring-2 focus:ring-blue-600' : 'bg-white border-slate-200 text-slate-900 focus:ring-2 focus:ring-blue-500')}`} />
-                   {!isAddressLocked && suggestions.length > 0 && (
+                   <textarea 
+                     value={address} 
+                     onChange={(e) => handleAddressChange(e.target.value)} 
+                     readOnly={isAddressLocked || !canEdit} 
+                     placeholder={media.hasGps ? "Sincronizando coordenadas..." : (canEdit ? "Insira o endereço para geocodificação..." : "Endereço não definido")} 
+                     className={`w-full border rounded-[1.5rem] p-6 text-[11px] font-bold outline-none h-32 resize-none transition-all leading-relaxed ${isAddressLocked || !canEdit ? (isDarkMode ? 'bg-slate-800/50 border-emerald-500/10 text-slate-400' : 'bg-slate-50 border-emerald-500/10 text-slate-500') : (isDarkMode ? 'bg-slate-950 border-white/10 text-white focus:ring-2 focus:ring-blue-600' : 'bg-white border-slate-200 text-slate-900 focus:ring-2 focus:ring-blue-500')} ${!canEdit ? 'cursor-not-allowed opacity-60' : ''}`} 
+                   />
+                   {!isAddressLocked && canEdit && suggestions.length > 0 && (
                      <div className={`absolute top-full left-0 right-0 z-[1200] mt-3 rounded-2xl border shadow-2xl overflow-hidden ${isDarkMode ? 'bg-slate-800 border-white/10' : 'bg-white border-slate-200'}`}>
                         {suggestions.map((s, idx) => (
                           <div key={idx} onClick={() => selectSuggestion(s)} className={`p-4 text-[10px] font-bold cursor-pointer border-b last:border-0 ${isDarkMode ? 'hover:bg-blue-600/20 text-slate-300 border-white/5' : 'hover:bg-blue-50 text-slate-700 border-slate-100'}`}>{s}</div>
@@ -164,18 +181,28 @@ const MediaDetailsModal: React.FC<MediaDetailsModalProps> = ({
                 </div>
                 <div className="space-y-4">
                    <label className={`text-[9px] font-black uppercase tracking-widest px-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Observações Táticas</label>
-                   <textarea value={observation} onChange={(e) => setObservation(e.target.value)} placeholder="Relatório de missão, alvos ou anomalias..." className={`w-full border rounded-[1.5rem] p-6 text-[11px] font-bold outline-none h-80 resize-none transition-all leading-relaxed ${isDarkMode ? 'bg-slate-950 border-white/10 text-white focus:ring-2 focus:ring-blue-600' : 'bg-white border-slate-200 text-slate-900 focus:ring-2 focus:ring-blue-500'}`} />
+                   <textarea 
+                     value={observation} 
+                     onChange={(e) => setObservation(e.target.value)} 
+                     readOnly={!canEdit}
+                     placeholder={canEdit ? "Relatório de missão, alvos ou anomalias..." : "Observações indisponíveis"} 
+                     className={`w-full border rounded-[1.5rem] p-6 text-[11px] font-bold outline-none h-80 resize-none transition-all leading-relaxed ${isDarkMode ? 'bg-slate-950 border-white/10 text-white focus:ring-2 focus:ring-blue-600' : 'bg-white border-slate-200 text-slate-900 focus:ring-2 focus:ring-blue-500'} ${!canEdit ? 'cursor-not-allowed opacity-60' : ''}`} 
+                   />
                 </div>
              </div>
              <div className={`mt-10 pt-10 border-t space-y-4 ${isDarkMode ? 'border-white/5' : 'border-slate-100'}`}>
                 <div className="grid grid-cols-2 gap-4">
                   <button onClick={onDownload} className="py-4 bg-slate-800 text-blue-400 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-slate-700 transition-all">Download</button>
-                  <button onClick={onDelete} className="py-4 bg-red-600/10 text-red-500 rounded-2xl font-black text-[9px] uppercase tracking-widest border border-red-600/20 hover:bg-red-600 hover:text-white transition-all">Deletar Ativo</button>
+                  {canEdit && (
+                    <button onClick={onDelete} className="py-4 bg-red-600/10 text-red-500 rounded-2xl font-black text-[9px] uppercase tracking-widest border border-red-600/20 hover:bg-red-600 hover:text-white transition-all">Deletar Ativo</button>
+                  )}
                 </div>
-                <button onClick={handleSave} disabled={isSaving} className={`w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center justify-center space-x-3 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                  {isSaving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
-                  <span>Salvar Dados de Missão</span>
-                </button>
+                {canEdit && (
+                  <button onClick={handleSave} disabled={isSaving} className={`w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center justify-center space-x-3 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    {isSaving && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
+                    <span>Salvar Dados de Missão</span>
+                  </button>
+                )}
              </div>
           </div>
         </div>

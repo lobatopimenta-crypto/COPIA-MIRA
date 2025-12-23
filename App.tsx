@@ -162,6 +162,7 @@ const App: React.FC = () => {
 
         const newMedia: DroneMedia = {
           id: Math.random().toString(36).substr(2, 9) + Date.now(),
+          ownerId: currentUser?.id || '', // Vincula o arquivo ao operador autenticado
           name: file.name,
           type: isVideo ? 'video' : 'image',
           previewUrl: preview,
@@ -324,7 +325,7 @@ const App: React.FC = () => {
         {activeTab === 'profile' && currentUser && <ProfileView currentUser={currentUser} onUpdateUser={handleUpdateUser} isDarkMode={isDarkMode} />}
       </main>
 
-      {analyzingMedia && <MediaDetailsModal media={analyzingMedia} onClose={() => { setAnalyzingMedia(null); setIsFullscreenMedia(false); }} onUpdate={updateMedia} onDelete={() => setMediaToDelete([analyzingMedia])} onDownload={() => downloadMedia(analyzingMedia)} isDarkMode={isDarkMode} fullscreenOnly={isFullscreenMedia} />}
+      {analyzingMedia && <MediaDetailsModal media={analyzingMedia} currentUser={currentUser} onClose={() => { setAnalyzingMedia(null); setIsFullscreenMedia(false); }} onUpdate={updateMedia} onDelete={() => setMediaToDelete([analyzingMedia])} onDownload={() => downloadMedia(analyzingMedia)} isDarkMode={isDarkMode} fullscreenOnly={isFullscreenMedia} />}
 
       {mediaToDelete && (
         <div className="fixed inset-0 z-[1200] bg-black/80 backdrop-blur-xl flex items-center justify-center p-8 animate-in zoom-in duration-300">
