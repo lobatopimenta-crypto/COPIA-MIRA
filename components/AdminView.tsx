@@ -150,7 +150,7 @@ const AdminView: React.FC<AdminViewProps> = ({ users, onAddUser, onUpdateUser, o
                   <td className="p-8">
                      <p className="text-[10px] text-white font-black uppercase mb-1">{user.lotacao}</p>
                      <span className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${user.role === 'ADM' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'}`}>
-                        {user.role}
+                        {user.role === 'OPERATOR' ? 'OPERADOR' : user.role}
                      </span>
                   </td>
                   <td className="p-8">
@@ -261,7 +261,7 @@ const AdminView: React.FC<AdminViewProps> = ({ users, onAddUser, onUpdateUser, o
 
                  <div>
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Código de Acesso (Senha) *</label>
-                    <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" className="w-full bg-slate-950 border border-white/10 rounded-2xl px-6 py-4 text-xs font-black text-white outline-none focus:ring-2 focus:ring-blue-600" />
+                    <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" className="w-full bg-slate-950 border border-white/10 rounded-2xl px-6 py-5 text-sm font-black text-white outline-none focus:ring-2 focus:ring-blue-600 transition-all" />
                  </div>
 
                  <div className="flex space-x-4 pt-6">
