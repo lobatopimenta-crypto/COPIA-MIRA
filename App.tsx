@@ -210,13 +210,28 @@ const App: React.FC = () => {
   };
 
   const deleteMediaBatch = (ids: string[]) => {
-    const names = mediaList.filter(m => ids.includes(m.id)).map(m => m.name).join(', ');
-    setMediaList(prev => prev.filter(m => !ids.includes(m.id)));
-    setCheckedIds(prev => prev.filter(id => !ids.includes(id)));
-    addAuditEntry(`EXCLUSÃO DE ${ids.length} ATIVOS: ${names}`);
+    // Filtra apenas os arquivos que o usuário TEM permissão de apagar
+    const mediaPermitida = mediaList.filter(m => 
+      ids.includes(m.id) && 
+      (currentUser?.role === 'ADM' || m.ownerId === currentUser?.id)
+    );
+
+    const idsParaApagar = mediaPermitida.map(m => m.id);
+    const nomes = mediaPermitida.map(m => m.name).join(', ');
+
+    if (idsParaApagar.length === 0) {
+      alert("Você não tem permissão para excluir os ativos selecionados.");
+      setMediaToDelete(null);
+      return;
+    }
+
+    setMediaList(prev => prev.filter(m => !idsParaApagar.includes(m.id)));
+    setCheckedIds(prev => prev.filter(id => !idsParaApagar.includes(id)));
+    
+    addAuditEntry(`EXCLUSÃO DE ${idsParaApagar.length} ATIVOS: ${nomes}`);
     setMediaToDelete(null);
     setAnalyzingMedia(null);
-    if (selectedMedia && ids.includes(selectedMedia.id)) setSelectedMedia(null);
+    if (selectedMedia && idsParaApagar.includes(selectedMedia.id)) setSelectedMedia(null);
   };
 
   const downloadMedia = (media: DroneMedia) => {
@@ -304,6 +319,7 @@ const App: React.FC = () => {
           <div className="flex-1 flex relative w-full h-full">
             <Sidebar 
               mediaList={mediaList} 
+              currentUser={currentUser}
               onSelect={(m) => { setAnalyzingMedia(m); setIsFullscreenMedia(false); }} 
               onDelete={(m) => setMediaToDelete([m])} 
               onAnalyze={(m) => { setAnalyzingMedia(m); setIsFullscreenMedia(false); }}
