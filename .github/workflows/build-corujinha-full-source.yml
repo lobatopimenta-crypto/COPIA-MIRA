@@ -97,7 +97,19 @@ jobs:
 
       - name: Build complete installable APK
         working-directory: Corujinha-Finance-codigo-fonte
-        run: gradle --no-daemon :app:assembleDebug --stacktrace
+        shell: bash
+        run: |
+          set +e
+          gradle --no-daemon --console=plain :app:assembleDebug > /tmp/coruja-gradle.log 2>&1
+          STATUS=$?
+          if [ "$STATUS" -ne 0 ]; then
+            echo '===== ERROS DO COMPILADOR ====='
+            grep -E '(^e: |error:|FAILURE:|What went wrong:|Compilation error|Unresolved reference|Type mismatch|No value passed)' /tmp/coruja-gradle.log | tail -n 250 || true
+            echo '===== FINAL DO LOG ====='
+            tail -n 120 /tmp/coruja-gradle.log
+            exit "$STATUS"
+          fi
+          tail -n 40 /tmp/coruja-gradle.log
 
       - name: Validate APK and source correspondence
         shell: bash
