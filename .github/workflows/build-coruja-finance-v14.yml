@@ -6,6 +6,7 @@ on:
     paths:
       - '.build-input/coruja-v13.part*'
       - '.build-input/coruja-v14-patch.part*'
+      - '.build-input/coruja-v14-components-fix.b64'
       - '.github/workflows/build-coruja-finance-v14.yml'
   workflow_dispatch:
 
@@ -45,6 +46,10 @@ jobs:
           echo "7a0ff60335a9c536108c9fc0aca8fcedd66122a2bc88a7b3303832bd302c23af  coruja-v14-patch.tar.xz" | sha256sum --check
           tar -xJf coruja-v14-patch.tar.xz -C Corujinha-Finance-codigo-fonte
 
+          base64 --decode .build-input/coruja-v14-components-fix.b64 > coruja-v14-components-fix.tar.xz
+          echo "cf702f40c5d42f5a44933313c37166eec862fe0a5a0c32d093c6fcb993d83daf  coruja-v14-components-fix.tar.xz" | sha256sum --check
+          tar -xJf coruja-v14-components-fix.tar.xz -C Corujinha-Finance-codigo-fonte
+
           SRC='Corujinha-Finance-codigo-fonte'
           test -f "$SRC/app/src/main/java/com/example/MainActivity.kt"
           grep -Rq 'versionName = "1.4"' "$SRC/app/build.gradle.kts"
@@ -53,7 +58,8 @@ jobs:
           grep -Rq 'onEditGoal' "$SRC/app/src/main/java/com/example/ui/screens/GoalsScreen.kt"
           grep -Rq 'setDarkModeEnabled' "$SRC/app/src/main/java/com/example/ui/screens/SettingsScreen.kt"
           grep -Rq 'Entrar com impressão digital' "$SRC/app/src/main/java/com/example/ui/screens/LoginScreen.kt"
-          grep -Rq 'Alignment.TopCenter' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
+          grep -Rq 'contentAlignment = Alignment.TopCenter' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
+          grep -Rq '.size(74.dp)' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
           ! grep -q 'TRANSFERENCIA' "$SRC/app/src/main/java/com/example/ui/screens/AddEditTransactionDialog.kt"
 
       - name: Setup Java 17
