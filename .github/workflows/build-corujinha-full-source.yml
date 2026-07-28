@@ -22,6 +22,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo 'fa7166689ebb3db595820dd45ecac7d484d4418af3512ce293c53c5b808cdd04  .build-input/coruja-v13.part00' | sha256sum --check
+          echo '766daded5d19c1848de9218be77b4ef6b17e3dc75fad12997822b9a25a0273ba  .build-input/coruja-v13.part01' | sha256sum --check
+          echo '7820101cbc34f44542bb98b37f949bd9ac0ba6c7a0c58b1878485b924c965470  .build-input/coruja-v13.part02' | sha256sum --check
+          echo '811b384f6bc54ffbed4a8248d82f18219de918832d342848ca93a8e700745858  .build-input/coruja-v13.part03' | sha256sum --check
+          echo '0783220b7db8b981d41f7ea621c94154a0656465886341bfe6185fecf83ab97e  .build-input/coruja-v13.part04' | sha256sum --check
+          echo 'd4855ea4214c54b61b41db10cee8e28e2d71dbd2c9a37a71a83bd48f7913d5d4  .build-input/coruja-v13.part05' | sha256sum --check
+          echo 'f611d050a85dc2a4fd7176090a040101d0ec54c78eb14efd891b6f4b0e959e29  .build-input/coruja-v13.part06' | sha256sum --check
           cat \
             .build-input/coruja-v13.part00 \
             .build-input/coruja-v13.part01 \
@@ -31,7 +38,7 @@ jobs:
             .build-input/coruja-v13.part05 \
             .build-input/coruja-v13.part06 \
             | base64 --decode > coruja-v13-source.tar.xz
-          echo "350f54d253a934995dc2c51b1e94831e71da8484e03979a1b2360345f290cd91  coruja-v13-source.tar.xz" | sha256sum --check
+          echo '350f54d253a934995dc2c51b1e94831e71da8484e03979a1b2360345f290cd91  coruja-v13-source.tar.xz' | sha256sum --check
           tar -xJf coruja-v13-source.tar.xz
 
           SRC='Corujinha-Finance-codigo-fonte'
