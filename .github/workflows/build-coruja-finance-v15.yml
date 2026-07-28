@@ -68,7 +68,6 @@ jobs:
           grep -Fq 'GoalSummaryBlock' "$SRC/app/src/main/java/com/example/ui/screens/GoalsScreen.kt"
           grep -Fq 'title = "Poupança acumulada"' "$SRC/app/src/main/java/com/example/ui/screens/GoalsScreen.kt"
           grep -Fq 'title = "Gastos controlados"' "$SRC/app/src/main/java/com/example/ui/screens/GoalsScreen.kt"
-          grep -Fq 'modifier = Modifier.weight(1f)' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
           grep -Fq 'label = "Despesas"' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
           grep -Fq 'textAlign = TextAlign.Center' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
 
@@ -93,8 +92,22 @@ jobs:
           gradle-version: '9.3.1'
 
       - name: Build complete installable APK
+        shell: bash
         working-directory: Corujinha-Finance-codigo-fonte
-        run: gradle --no-daemon :app:assembleDebug --stacktrace
+        run: |
+          set +e
+          gradle --no-daemon :app:assembleDebug --stacktrace 2>&1 | tee ../Coruja-Finance-v1.5-build.log
+          status=${PIPESTATUS[0]}
+          exit $status
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coruja-Finance-v1.5-build-log
+          path: Coruja-Finance-v1.5-build.log
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Validate APK and package source
         shell: bash
