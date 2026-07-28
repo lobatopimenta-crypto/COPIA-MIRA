@@ -22,7 +22,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .build-input/corujinha-source3.part* | base64 --decode > corujinha-source.tar.xz
+          cat \
+            .build-input/corujinha-source3.part00 \
+            .build-input/corujinha-source3.part01a \
+            .build-input/corujinha-source3.part01b \
+            .build-input/corujinha-source3.part01c \
+            .build-input/corujinha-source3.part02 \
+            .build-input/corujinha-source3.part03 \
+            .build-input/corujinha-source3.part04 \
+            | base64 --decode > corujinha-source.tar.xz
           echo "61e87c528c3ccc1b09a45649e3703d69da2d34304ca521e8cf7fc6a7733f9b30  corujinha-source.tar.xz" | sha256sum --check
           tar -xJf corujinha-source.tar.xz
           test -f 'Corujinha-Finance-codigo-fonte/app/src/main/java/com/example/MainActivity.kt'
