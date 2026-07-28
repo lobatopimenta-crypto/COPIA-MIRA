@@ -57,9 +57,9 @@ jobs:
           ! grep -Rqi 'Entrar com Google' "$SRC/app/src/main"
           ! grep -Rqi 'Alex Silva\|Salário Mensal' "$SRC/app/src/main"
           grep -q 'version = 2' "$SRC/app/src/main/java/com/example/data/local/AppDatabase.kt"
-          grep -q 'resetDataToEmpty' "$SRC/app/src/main/java/com/example/data/FinanceRepository.kt"
+          grep -q 'resetDataToEmpty' "$SRC/app/src/main/java/com/example/data/repository/FinanceRepository.kt"
           grep -q 'Autenticação biométrica' "$SRC/app/src/main/java/com/example/ui/screens/SettingsScreen.kt"
-          grep -q 'Senha de acesso' "$SRC/app/src/main/java/com/example/ui/screens/SettingsScreen.kt"
+          grep -q 'Proteger com senha' "$SRC/app/src/main/java/com/example/ui/screens/SettingsScreen.kt"
           grep -q 'Receitas' "$SRC/app/src/main/java/com/example/ui/screens/TransactionsScreen.kt"
           grep -q 'Despesas' "$SRC/app/src/main/java/com/example/ui/screens/TransactionsScreen.kt"
 
