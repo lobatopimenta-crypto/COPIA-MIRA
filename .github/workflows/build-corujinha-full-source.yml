@@ -24,8 +24,12 @@ jobs:
         run: echo '766daded5d19c1848de9218be77b4ef6b17e3dc75fad12997822b9a25a0273ba  .build-input/coruja-v13.part01' | sha256sum --check
       - name: Validate source chunk 02
         run: echo '7820101cbc34f44542bb98b37f949bd9ac0ba6c7a0c58b1878485b924c965470  .build-input/coruja-v13.part02' | sha256sum --check
-      - name: Validate source chunk 03
-        run: echo '811b384f6bc54ffbed4a8248d82f18219de918832d342848ca93a8e700745858  .build-input/coruja-v13.part03' | sha256sum --check
+      - name: Validate source chunk 03a
+        run: echo '10f6e081e5a3a1b5714b01b522b1fd8448cfaeddd8c0f97dd77abe4d8b0030ea  .build-input/coruja-v13.part03a' | sha256sum --check
+      - name: Validate source chunk 03b
+        run: echo '599bfd43260b94952e145044cbbe81dbb7585e2b4965864fbb7e9b344d426483  .build-input/coruja-v13.part03b' | sha256sum --check
+      - name: Validate source chunk 03c
+        run: echo '911401fbd60cac51a7b578b86c9194b7a4c88a1a18adbb3b4db1055edc5f700a  .build-input/coruja-v13.part03c' | sha256sum --check
       - name: Validate source chunk 04
         run: echo '0783220b7db8b981d41f7ea621c94154a0656465886341bfe6185fecf83ab97e  .build-input/coruja-v13.part04' | sha256sum --check
       - name: Validate source chunk 05
@@ -41,7 +45,9 @@ jobs:
             .build-input/coruja-v13.part00 \
             .build-input/coruja-v13.part01 \
             .build-input/coruja-v13.part02 \
-            .build-input/coruja-v13.part03 \
+            .build-input/coruja-v13.part03a \
+            .build-input/coruja-v13.part03b \
+            .build-input/coruja-v13.part03c \
             .build-input/coruja-v13.part04 \
             .build-input/coruja-v13.part05 \
             .build-input/coruja-v13.part06 \
