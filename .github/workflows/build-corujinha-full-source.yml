@@ -63,7 +63,24 @@ jobs:
 
           SRC='Corujinha-Finance-codigo-fonte'
           rm -f "$SRC/app/src/main/java/com/example/ui/security/BiometricSecurity.kt"
+          sed -i 's/import androidx.fragment.app.FragmentActivity/import androidx.activity.ComponentActivity/' "$SRC/app/src/main/java/com/example/MainActivity.kt"
+          sed -i 's/class MainActivity:FragmentActivity()/class MainActivity:ComponentActivity()/' "$SRC/app/src/main/java/com/example/MainActivity.kt"
+          mkdir -p "$SRC/app/src/main/java/com/example/ui/security"
+          cat > "$SRC/app/src/main/java/com/example/ui/security/PasswordSecurity.kt" <<'KOTLIN'
+          package com.example.ui.security
+
+          import java.security.MessageDigest
+
+          fun hashPassword(password: String): String {
+              if (password.isBlank()) return ""
+              val bytes = MessageDigest.getInstance("SHA-256")
+                  .digest(password.toByteArray(Charsets.UTF_8))
+              return bytes.joinToString("") { "%02x".format(it) }
+          }
+          KOTLIN
+
           test -f "$SRC/app/src/main/java/com/example/MainActivity.kt"
+          test -f "$SRC/app/src/main/java/com/example/ui/security/PasswordSecurity.kt"
           grep -q 'version = 3' "$SRC/app/src/main/java/com/example/data/local/AppDatabase.kt"
           grep -q 'versionName = "1.3"' "$SRC/app/build.gradle.kts"
           grep -Rq 'dueDateMillis' "$SRC/app/src/main/java"
