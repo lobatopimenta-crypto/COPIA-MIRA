@@ -18,17 +18,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate source chunk 00
+        run: echo 'fa7166689ebb3db595820dd45ecac7d484d4418af3512ce293c53c5b808cdd04  .build-input/coruja-v13.part00' | sha256sum --check
+      - name: Validate source chunk 01
+        run: echo '766daded5d19c1848de9218be77b4ef6b17e3dc75fad12997822b9a25a0273ba  .build-input/coruja-v13.part01' | sha256sum --check
+      - name: Validate source chunk 02
+        run: echo '7820101cbc34f44542bb98b37f949bd9ac0ba6c7a0c58b1878485b924c965470  .build-input/coruja-v13.part02' | sha256sum --check
+      - name: Validate source chunk 03
+        run: echo '811b384f6bc54ffbed4a8248d82f18219de918832d342848ca93a8e700745858  .build-input/coruja-v13.part03' | sha256sum --check
+      - name: Validate source chunk 04
+        run: echo '0783220b7db8b981d41f7ea621c94154a0656465886341bfe6185fecf83ab97e  .build-input/coruja-v13.part04' | sha256sum --check
+      - name: Validate source chunk 05
+        run: echo 'd4855ea4214c54b61b41db10cee8e28e2d71dbd2c9a37a71a83bd48f7913d5d4  .build-input/coruja-v13.part05' | sha256sum --check
+      - name: Validate source chunk 06
+        run: echo 'f611d050a85dc2a4fd7176090a040101d0ec54c78eb14efd891b6f4b0e959e29  .build-input/coruja-v13.part06' | sha256sum --check
+
       - name: Reconstruct complete v1.3 source
         shell: bash
         run: |
           set -euo pipefail
-          echo 'fa7166689ebb3db595820dd45ecac7d484d4418af3512ce293c53c5b808cdd04  .build-input/coruja-v13.part00' | sha256sum --check
-          echo '766daded5d19c1848de9218be77b4ef6b17e3dc75fad12997822b9a25a0273ba  .build-input/coruja-v13.part01' | sha256sum --check
-          echo '7820101cbc34f44542bb98b37f949bd9ac0ba6c7a0c58b1878485b924c965470  .build-input/coruja-v13.part02' | sha256sum --check
-          echo '811b384f6bc54ffbed4a8248d82f18219de918832d342848ca93a8e700745858  .build-input/coruja-v13.part03' | sha256sum --check
-          echo '0783220b7db8b981d41f7ea621c94154a0656465886341bfe6185fecf83ab97e  .build-input/coruja-v13.part04' | sha256sum --check
-          echo 'd4855ea4214c54b61b41db10cee8e28e2d71dbd2c9a37a71a83bd48f7913d5d4  .build-input/coruja-v13.part05' | sha256sum --check
-          echo 'f611d050a85dc2a4fd7176090a040101d0ec54c78eb14efd891b6f4b0e959e29  .build-input/coruja-v13.part06' | sha256sum --check
           cat \
             .build-input/coruja-v13.part00 \
             .build-input/coruja-v13.part01 \
