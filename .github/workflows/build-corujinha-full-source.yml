@@ -6,7 +6,7 @@ on:
     paths:
       - '.build-input/corujinha-source3.part*'
       - '.build-input/coruja-v12-overlay.part*'
-      - '.build-input/coruja-v13-overlay.part*'
+      - '.build-input/coruja-v13-overlay2.part*'
       - '.github/workflows/build-corujinha-full-source.yml'
   workflow_dispatch:
 
@@ -50,7 +50,14 @@ jobs:
           echo "c3017fce4e0219c46771fc603df8552d71e8a072a0812bdbe5d44facaeb8657a  coruja-v12-overlay.tar.xz" | sha256sum --check
           tar -xJf coruja-v12-overlay.tar.xz -C Corujinha-Finance-codigo-fonte
 
-          cat .build-input/coruja-v13-overlay.part00 | base64 --decode > coruja-v13-overlay.tar.xz
+          cat \
+            .build-input/coruja-v13-overlay2.part00 \
+            .build-input/coruja-v13-overlay2.part01 \
+            .build-input/coruja-v13-overlay2.part02 \
+            .build-input/coruja-v13-overlay2.part03 \
+            .build-input/coruja-v13-overlay2.part04 \
+            .build-input/coruja-v13-overlay2.part05 \
+            | base64 --decode > coruja-v13-overlay.tar.xz
           echo "37c00330734523fa8fa8d0e80b8552ca92d9d3eaa9026e893669ca765799d882  coruja-v13-overlay.tar.xz" | sha256sum --check
           tar -xJf coruja-v13-overlay.tar.xz -C Corujinha-Finance-codigo-fonte
 
