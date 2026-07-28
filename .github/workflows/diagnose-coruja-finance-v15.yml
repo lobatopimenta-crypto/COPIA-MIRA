@@ -21,10 +21,10 @@ jobs:
           set +e
           {
             echo '=== sizes ==='
-            wc -c .build-input/coruja-v15-patch.part00 .build-input/coruja-v15-patch.part01a .build-input/coruja-v15-patch.part01b0 .build-input/coruja-v15-patch.part01b1 .build-input/coruja-v15-patch.part02 .build-input/coruja-v15-patch.part03
+            wc -c .build-input/coruja-v15-patch.part00 .build-input/coruja-v15-patch.part01a .build-input/coruja-v15-patch.part01b0 .build-input/coruja-v15-patch.part01b10 .build-input/coruja-v15-patch.part01b11 .build-input/coruja-v15-patch.part02 .build-input/coruja-v15-patch.part03
             echo '=== hashes ==='
-            sha256sum .build-input/coruja-v15-patch.part00 .build-input/coruja-v15-patch.part01a .build-input/coruja-v15-patch.part01b0 .build-input/coruja-v15-patch.part01b1 .build-input/coruja-v15-patch.part02 .build-input/coruja-v15-patch.part03
-            cat .build-input/coruja-v15-patch.part00 .build-input/coruja-v15-patch.part01a .build-input/coruja-v15-patch.part01b0 .build-input/coruja-v15-patch.part01b1 .build-input/coruja-v15-patch.part02 .build-input/coruja-v15-patch.part03 > coruja-v15-patch.b64
+            sha256sum .build-input/coruja-v15-patch.part00 .build-input/coruja-v15-patch.part01a .build-input/coruja-v15-patch.part01b0 .build-input/coruja-v15-patch.part01b10 .build-input/coruja-v15-patch.part01b11 .build-input/coruja-v15-patch.part02 .build-input/coruja-v15-patch.part03
+            cat .build-input/coruja-v15-patch.part00 .build-input/coruja-v15-patch.part01a .build-input/coruja-v15-patch.part01b0 .build-input/coruja-v15-patch.part01b10 .build-input/coruja-v15-patch.part01b11 .build-input/coruja-v15-patch.part02 .build-input/coruja-v15-patch.part03 > coruja-v15-patch.b64
             echo '=== combined ==='
             wc -c coruja-v15-patch.b64
             sha256sum coruja-v15-patch.b64
