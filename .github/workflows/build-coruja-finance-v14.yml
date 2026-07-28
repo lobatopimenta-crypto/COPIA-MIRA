@@ -1,10 +1,12 @@
-name: Diagnose Coruja Finance v1.4 patch
+name: Build Coruja Finance v1.4
 
 on:
   pull_request:
     branches: [main]
     paths:
+      - '.build-input/coruja-v13.part*'
       - '.build-input/coruja-v14-patch.part*'
+      - '.build-input/coruja-v14-components-fix.b64'
       - '.github/workflows/build-coruja-finance-v14.yml'
   workflow_dispatch:
 
@@ -12,42 +14,105 @@ permissions:
   contents: read
 
 jobs:
-  diagnose:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Diagnose patch blocks
+      - name: Reconstruct v1.3 source
         shell: bash
         run: |
-          set +e
-          {
-            echo '=== file sizes ==='
-            wc -c .build-input/coruja-v14-patch.part00 .build-input/coruja-v14-patch.part01 .build-input/coruja-v14-patch.part02 .build-input/coruja-v14-patch.part03
-            echo '=== block hashes ==='
-            sha256sum .build-input/coruja-v14-patch.part00 .build-input/coruja-v14-patch.part01 .build-input/coruja-v14-patch.part02 .build-input/coruja-v14-patch.part03
-            cat .build-input/coruja-v14-patch.part00 .build-input/coruja-v14-patch.part01 .build-input/coruja-v14-patch.part02 .build-input/coruja-v14-patch.part03 > coruja-v14-patch.b64
-            echo '=== combined base64 ==='
-            wc -c coruja-v14-patch.b64
-            sha256sum coruja-v14-patch.b64
-            base64 --decode coruja-v14-patch.b64 > coruja-v14-patch.tar.xz
-            echo "base64_exit=$?"
-            echo '=== decoded archive ==='
-            wc -c coruja-v14-patch.tar.xz
-            sha256sum coruja-v14-patch.tar.xz
-            xz -t coruja-v14-patch.tar.xz
-            echo "xz_exit=$?"
-            tar -tJf coruja-v14-patch.tar.xz
-            echo "tar_exit=$?"
-          } > patch-diagnostic.txt 2>&1
-          cat patch-diagnostic.txt
+          set -euo pipefail
+          cat .build-input/coruja-v13.part00 .build-input/coruja-v13.part01 .build-input/coruja-v13.part02 .build-input/coruja-v13.part03 .build-input/coruja-v13.part04 .build-input/coruja-v13.part05 .build-input/coruja-v13.part06 .build-input/coruja-v13.part07 | base64 --decode > coruja-v13-source.tar.xz
+          echo "76b9ba4aee4999bf8b167056f055663873f496521412ec5c5b62a879d21d6de3  coruja-v13-source.tar.xz" | sha256sum --check
+          tar -xJf coruja-v13-source.tar.xz
 
-      - name: Upload diagnostic
-        if: always()
+      - name: Reconstruct and apply v1.4 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "d325506c6520053a4590ecd5e4f38f1bff73c5f2c789f4a78b6cf13378215755  .build-input/coruja-v14-patch.part00a" | sha256sum --check
+          echo "8a90780f5f1badf15bba3b7ed22379a854f68e09310490b8bc165b5b956f5462  .build-input/coruja-v14-patch.part00b" | sha256sum --check
+          echo "ab48ed1d9fea6d8bae072da57ac977f572da767176a635756f52184a3e870e4d  .build-input/coruja-v14-patch.part01a" | sha256sum --check
+          echo "9ccfdc792002233bbe89694ab555421dcbbc34b36b36f9ace60b39899fd6676c  .build-input/coruja-v14-patch.part01b" | sha256sum --check
+          echo "3bd8548340e24ff6cf93933aae5b10ccfab8082b2efec2e2f47014b5339c85dc  .build-input/coruja-v14-patch.part02" | sha256sum --check
+          echo "3d8a8ae01c3fa83d9c3d274a3a2b3e8e9de00cba8849e1f7f222830d6c3f4c5a  .build-input/coruja-v14-patch.part03" | sha256sum --check
+          cat .build-input/coruja-v14-patch.part00a .build-input/coruja-v14-patch.part00b .build-input/coruja-v14-patch.part01a .build-input/coruja-v14-patch.part01b .build-input/coruja-v14-patch.part02 .build-input/coruja-v14-patch.part03 | base64 --decode > coruja-v14-patch.tar.xz
+          echo "7a0ff60335a9c536108c9fc0aca8fcedd66122a2bc88a7b3303832bd302c23af  coruja-v14-patch.tar.xz" | sha256sum --check
+          xz -t coruja-v14-patch.tar.xz
+          tar -xJf coruja-v14-patch.tar.xz -C Corujinha-Finance-codigo-fonte
+
+      - name: Apply cropped owl header
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode .build-input/coruja-v14-components-fix.b64 > coruja-v14-components-fix.tar.xz
+          echo "cf702f40c5d42f5a44933313c37166eec862fe0a5a0c32d093c6fcb993d83daf  coruja-v14-components-fix.tar.xz" | sha256sum --check
+          tar -xJf coruja-v14-components-fix.tar.xz -C Corujinha-Finance-codigo-fonte
+
+      - name: Validate requested v1.4 features
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC='Corujinha-Finance-codigo-fonte'
+          test -f "$SRC/app/src/main/java/com/example/MainActivity.kt"
+          grep -Fq 'versionName = "1.4"' "$SRC/app/build.gradle.kts"
+          grep -Fq 'DatePickerDialog' "$SRC/app/src/main/java/com/example/ui/screens/AddEditTransactionDialog.kt"
+          grep -Fq 'installmentTotal' "$SRC/app/src/main/java/com/example/ui/screens/AddEditTransactionDialog.kt"
+          grep -Fq 'onEditGoal' "$SRC/app/src/main/java/com/example/ui/screens/GoalsScreen.kt"
+          grep -Fq 'setDarkModeEnabled' "$SRC/app/src/main/java/com/example/ui/screens/SettingsScreen.kt"
+          grep -Fq 'Entrar com impressão digital' "$SRC/app/src/main/java/com/example/ui/screens/LoginScreen.kt"
+          grep -Fq 'contentAlignment = Alignment.TopCenter' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
+          grep -Fq '.size(74.dp)' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
+          ! grep -Fq 'TRANSFERENCIA' "$SRC/app/src/main/java/com/example/ui/screens/AddEditTransactionDialog.kt"
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Build complete installable APK
+        working-directory: Corujinha-Finance-codigo-fonte
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Validate APK and package source
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='Corujinha-Finance-codigo-fonte/app/build/outputs/apk/debug/app-debug.apk'
+          test -f "$APK"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          unzip -t "$APK"
+          cp "$APK" Coruja-Finance-v1.4-Completo.apk
+          zip -qr Coruja-Finance-codigo-fonte-v1.4.zip Corujinha-Finance-codigo-fonte -x '*/.gradle/*' '*/build/*' '*.jks' '*.keystore' '*.p12'
+          sha256sum Coruja-Finance-v1.4-Completo.apk | tee Coruja-Finance-v1.4-APK-SHA256.txt
+          sha256sum Coruja-Finance-codigo-fonte-v1.4.zip | tee Coruja-Finance-v1.4-Fonte-SHA256.txt
+
+      - name: Upload APK and source
         uses: actions/upload-artifact@v4
         with:
-          name: Coruja-v14-patch-diagnostic
-          path: patch-diagnostic.txt
+          name: Coruja-Finance-v1.4-Completo
+          path: |
+            Coruja-Finance-v1.4-Completo.apk
+            Coruja-Finance-codigo-fonte-v1.4.zip
+            Coruja-Finance-v1.4-APK-SHA256.txt
+            Coruja-Finance-v1.4-Fonte-SHA256.txt
           if-no-files-found: error
           retention-days: 7
