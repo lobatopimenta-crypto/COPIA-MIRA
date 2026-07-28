@@ -20,47 +20,45 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Reconstruct v1.3 source and apply v1.4 patch
+      - name: Reconstruct v1.3 source
         shell: bash
         run: |
           set -euo pipefail
-          cat \
-            .build-input/coruja-v13.part00 \
-            .build-input/coruja-v13.part01 \
-            .build-input/coruja-v13.part02 \
-            .build-input/coruja-v13.part03 \
-            .build-input/coruja-v13.part04 \
-            .build-input/coruja-v13.part05 \
-            .build-input/coruja-v13.part06 \
-            .build-input/coruja-v13.part07 \
-            | base64 --decode > coruja-v13-source.tar.xz
+          cat .build-input/coruja-v13.part00 .build-input/coruja-v13.part01 .build-input/coruja-v13.part02 .build-input/coruja-v13.part03 .build-input/coruja-v13.part04 .build-input/coruja-v13.part05 .build-input/coruja-v13.part06 .build-input/coruja-v13.part07 | base64 --decode > coruja-v13-source.tar.xz
           echo "76b9ba4aee4999bf8b167056f055663873f496521412ec5c5b62a879d21d6de3  coruja-v13-source.tar.xz" | sha256sum --check
           tar -xJf coruja-v13-source.tar.xz
 
-          cat \
-            .build-input/coruja-v14-patch.part00 \
-            .build-input/coruja-v14-patch.part01 \
-            .build-input/coruja-v14-patch.part02 \
-            .build-input/coruja-v14-patch.part03 \
-            | base64 --decode > coruja-v14-patch.tar.xz
-          echo "7a0ff60335a9c536108c9fc0aca8fcedd66122a2bc88a7b3303832bd302c23af  coruja-v14-patch.tar.xz" | sha256sum --check
+      - name: Apply v1.4 functional patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .build-input/coruja-v14-patch.part00 .build-input/coruja-v14-patch.part01 .build-input/coruja-v14-patch.part02 .build-input/coruja-v14-patch.part03 | base64 --decode > coruja-v14-patch.tar.xz
+          sha256sum coruja-v14-patch.tar.xz
           tar -xJf coruja-v14-patch.tar.xz -C Corujinha-Finance-codigo-fonte
 
+      - name: Apply cropped owl header
+        shell: bash
+        run: |
+          set -euo pipefail
           base64 --decode .build-input/coruja-v14-components-fix.b64 > coruja-v14-components-fix.tar.xz
           echo "cf702f40c5d42f5a44933313c37166eec862fe0a5a0c32d093c6fcb993d83daf  coruja-v14-components-fix.tar.xz" | sha256sum --check
           tar -xJf coruja-v14-components-fix.tar.xz -C Corujinha-Finance-codigo-fonte
 
+      - name: Validate requested v1.4 features
+        shell: bash
+        run: |
+          set -euo pipefail
           SRC='Corujinha-Finance-codigo-fonte'
           test -f "$SRC/app/src/main/java/com/example/MainActivity.kt"
-          grep -Rq 'versionName = "1.4"' "$SRC/app/build.gradle.kts"
-          grep -Rq 'DatePickerDialog' "$SRC/app/src/main/java/com/example/ui/screens/AddEditTransactionDialog.kt"
-          grep -Rq 'installmentTotal' "$SRC/app/src/main/java/com/example/ui/screens/AddEditTransactionDialog.kt"
-          grep -Rq 'onEditGoal' "$SRC/app/src/main/java/com/example/ui/screens/GoalsScreen.kt"
-          grep -Rq 'setDarkModeEnabled' "$SRC/app/src/main/java/com/example/ui/screens/SettingsScreen.kt"
-          grep -Rq 'Entrar com impressão digital' "$SRC/app/src/main/java/com/example/ui/screens/LoginScreen.kt"
-          grep -Rq 'contentAlignment = Alignment.TopCenter' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
-          grep -Rq '.size(74.dp)' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
-          ! grep -q 'TRANSFERENCIA' "$SRC/app/src/main/java/com/example/ui/screens/AddEditTransactionDialog.kt"
+          grep -Fq 'versionName = "1.4"' "$SRC/app/build.gradle.kts"
+          grep -Fq 'DatePickerDialog' "$SRC/app/src/main/java/com/example/ui/screens/AddEditTransactionDialog.kt"
+          grep -Fq 'installmentTotal' "$SRC/app/src/main/java/com/example/ui/screens/AddEditTransactionDialog.kt"
+          grep -Fq 'onEditGoal' "$SRC/app/src/main/java/com/example/ui/screens/GoalsScreen.kt"
+          grep -Fq 'setDarkModeEnabled' "$SRC/app/src/main/java/com/example/ui/screens/SettingsScreen.kt"
+          grep -Fq 'Entrar com impressão digital' "$SRC/app/src/main/java/com/example/ui/screens/LoginScreen.kt"
+          grep -Fq 'contentAlignment = Alignment.TopCenter' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
+          grep -Fq '.size(74.dp)' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
+          ! grep -Fq 'TRANSFERENCIA' "$SRC/app/src/main/java/com/example/ui/screens/AddEditTransactionDialog.kt"
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -96,8 +94,7 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           unzip -t "$APK"
           cp "$APK" Coruja-Finance-v1.4-Completo.apk
-          zip -qr Coruja-Finance-codigo-fonte-v1.4.zip Corujinha-Finance-codigo-fonte \
-            -x '*/.gradle/*' '*/build/*' '*.jks' '*.keystore' '*.p12'
+          zip -qr Coruja-Finance-codigo-fonte-v1.4.zip Corujinha-Finance-codigo-fonte -x '*/.gradle/*' '*/build/*' '*.jks' '*.keystore' '*.p12'
           sha256sum Coruja-Finance-v1.4-Completo.apk | tee Coruja-Finance-v1.4-APK-SHA256.txt
           sha256sum Coruja-Finance-codigo-fonte-v1.4.zip | tee Coruja-Finance-v1.4-Fonte-SHA256.txt
 
