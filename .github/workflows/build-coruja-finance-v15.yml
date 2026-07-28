@@ -7,7 +7,7 @@ on:
       - '.build-input/coruja-v13.part*'
       - '.build-input/coruja-v14-patch.part*'
       - '.build-input/coruja-v14-components-fix.b64'
-      - '.build-input/coruja-v15-patch.b64'
+      - '.build-input/coruja-v15-patch.part*'
       - '.github/workflows/build-coruja-finance-v15.yml'
   workflow_dispatch:
 
@@ -44,9 +44,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "02483c94964d7d10bd3d22a4561709af8a543b8eec0d7e157a1af93c71d5842d  .build-input/coruja-v15-patch.b64" | sha256sum --check
-          base64 --decode .build-input/coruja-v15-patch.b64 > coruja-v15-patch.tar.xz
+          echo "84001484c2a2a62082fa636f3593db78628136a5faa53691bedc3e737882a106  .build-input/coruja-v15-patch.part00" | sha256sum --check
+          echo "8b9b5db451e53127fbf1a18d304b420e5b8566920e2b10d9d33ef93cfc81fce4  .build-input/coruja-v15-patch.part01" | sha256sum --check
+          echo "57dc4c3e3a8afe83808a871ea95b3cee8320b09b508e1e8807e9cb77a2f3df6f  .build-input/coruja-v15-patch.part02" | sha256sum --check
+          echo "e571ba8eface34700eb36c171101c1d28d32a431867d7c4711e49ed8f608b4e8  .build-input/coruja-v15-patch.part03" | sha256sum --check
+          cat .build-input/coruja-v15-patch.part00 .build-input/coruja-v15-patch.part01 .build-input/coruja-v15-patch.part02 .build-input/coruja-v15-patch.part03 > coruja-v15-patch.b64
+          echo "02483c94964d7d10bd3d22a4561709af8a543b8eec0d7e157a1af93c71d5842d  coruja-v15-patch.b64" | sha256sum --check
+          base64 --decode coruja-v15-patch.b64 > coruja-v15-patch.tar.xz
           echo "7c9dedeacd85208c9c2894f209570d04c18c733a450e5ce745f7bf13b817bb75  coruja-v15-patch.tar.xz" | sha256sum --check
+          xz -t coruja-v15-patch.tar.xz
           tar -xJf coruja-v15-patch.tar.xz -C Corujinha-Finance-codigo-fonte
           while IFS= read -r path; do
             rm -f "Corujinha-Finance-codigo-fonte/$path"
