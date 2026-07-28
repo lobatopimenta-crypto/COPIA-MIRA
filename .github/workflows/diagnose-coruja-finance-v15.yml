@@ -1,0 +1,49 @@
+name: Diagnose Coruja Finance v1.5 chunks
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inspect chunks
+        shell: bash
+        run: |
+          set +e
+          {
+            echo '=== sizes ==='
+            wc -c .build-input/coruja-v15-patch.part00 .build-input/coruja-v15-patch.part01 .build-input/coruja-v15-patch.part02 .build-input/coruja-v15-patch.part03
+            echo '=== hashes ==='
+            sha256sum .build-input/coruja-v15-patch.part00 .build-input/coruja-v15-patch.part01 .build-input/coruja-v15-patch.part02 .build-input/coruja-v15-patch.part03
+            cat .build-input/coruja-v15-patch.part00 .build-input/coruja-v15-patch.part01 .build-input/coruja-v15-patch.part02 .build-input/coruja-v15-patch.part03 > coruja-v15-patch.b64
+            echo '=== combined ==='
+            wc -c coruja-v15-patch.b64
+            sha256sum coruja-v15-patch.b64
+            base64 --decode coruja-v15-patch.b64 > coruja-v15-patch.tar.xz
+            echo "base64_exit=$?"
+            wc -c coruja-v15-patch.tar.xz
+            sha256sum coruja-v15-patch.tar.xz
+            xz -t coruja-v15-patch.tar.xz
+            echo "xz_exit=$?"
+            tar -tJf coruja-v15-patch.tar.xz
+            echo "tar_exit=$?"
+          } > coruja-v15-chunks-diagnostic.txt 2>&1
+          cat coruja-v15-chunks-diagnostic.txt
+
+      - name: Upload diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coruja-v15-chunks-diagnostic
+          path: coruja-v15-chunks-diagnostic.txt
+          if-no-files-found: error
+          retention-days: 7
