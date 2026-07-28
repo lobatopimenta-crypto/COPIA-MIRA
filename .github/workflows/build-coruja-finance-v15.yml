@@ -44,9 +44,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "36b45111ff3d4c98fc3b6f85bef33c7e71bb50da5269e062fb3ad9d3a2813fd5  .build-input/coruja-v15-patch.b64" | sha256sum --check
+          echo "02483c94964d7d10bd3d22a4561709af8a543b8eec0d7e157a1af93c71d5842d  .build-input/coruja-v15-patch.b64" | sha256sum --check
           base64 --decode .build-input/coruja-v15-patch.b64 > coruja-v15-patch.tar.xz
-          echo "e96f3aa81a14a3a9ba4ef148c86f801db747f54e8f1b2d17e47697f0aa27a098  coruja-v15-patch.tar.xz" | sha256sum --check
+          echo "7c9dedeacd85208c9c2894f209570d04c18c733a450e5ce745f7bf13b817bb75  coruja-v15-patch.tar.xz" | sha256sum --check
           tar -xJf coruja-v15-patch.tar.xz -C Corujinha-Finance-codigo-fonte
           while IFS= read -r path; do
             rm -f "Corujinha-Finance-codigo-fonte/$path"
@@ -66,6 +66,8 @@ jobs:
           ! grep -Rq 'E-mail (opcional)' "$SRC/app/src/main/java/com/example"
           ! test -f "$SRC/app/src/main/java/com/example/ui/security/BiometricSecurity.kt"
           test -f "$SRC/app/src/main/java/com/example/ui/security/PasswordSecurity.kt"
+          grep -Fq 'class MainActivity : ComponentActivity()' "$SRC/app/src/main/java/com/example/MainActivity.kt"
+          ! grep -Fq 'FragmentActivity' "$SRC/app/src/main/java/com/example/MainActivity.kt"
           grep -Fq 'GoalSummaryBlock' "$SRC/app/src/main/java/com/example/ui/screens/GoalsScreen.kt"
           grep -Fq 'title = "Poupança acumulada"' "$SRC/app/src/main/java/com/example/ui/screens/GoalsScreen.kt"
           grep -Fq 'title = "Gastos controlados"' "$SRC/app/src/main/java/com/example/ui/screens/GoalsScreen.kt"
