@@ -100,16 +100,26 @@ jobs:
         shell: bash
         run: |
           set +e
-          gradle --no-daemon --console=plain :app:assembleDebug > /tmp/coruja-gradle.log 2>&1
+          gradle --no-daemon --console=plain :app:assembleDebug > coruja-gradle.log 2>&1
           STATUS=$?
           if [ "$STATUS" -ne 0 ]; then
-            echo '===== ERROS DO COMPILADOR ====='
-            grep -E '(^e: |error:|FAILURE:|What went wrong:|Compilation error|Unresolved reference|Type mismatch|No value passed)' /tmp/coruja-gradle.log | tail -n 250 || true
-            echo '===== FINAL DO LOG ====='
-            tail -n 120 /tmp/coruja-gradle.log
+            grep -E '(^e: |error:|FAILURE:|What went wrong:|Compilation error|Unresolved reference|Type mismatch|No value passed)' coruja-gradle.log | tail -n 250 > coruja-compiler-errors.txt || true
+            tail -n 160 coruja-gradle.log >> coruja-compiler-errors.txt
+            cat coruja-compiler-errors.txt
             exit "$STATUS"
           fi
-          tail -n 40 /tmp/coruja-gradle.log
+          tail -n 40 coruja-gradle.log
+
+      - name: Upload compiler report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coruja-Finance-v1.3-Compiler-Report
+          path: |
+            Corujinha-Finance-codigo-fonte/coruja-compiler-errors.txt
+            Corujinha-Finance-codigo-fonte/coruja-gradle.log
+          if-no-files-found: warn
+          retention-days: 2
 
       - name: Validate APK and source correspondence
         shell: bash
@@ -123,7 +133,7 @@ jobs:
           sha256sum "$APK" | tee Coruja-Finance-v1.3-APK-SHA256.txt
           cp "$APK" Coruja-Finance-v1.3-Completo.apk
           zip -qr Coruja-Finance-codigo-fonte-v1.3.zip Corujinha-Finance-codigo-fonte \
-            -x '*/.gradle/*' '*/build/*' '*.jks' '*.keystore' '*.p12'
+            -x '*/.gradle/*' '*/build/*' '*.jks' '*.keystore' '*.p12' '*coruja-gradle.log' '*coruja-compiler-errors.txt'
           sha256sum Coruja-Finance-codigo-fonte-v1.3.zip | tee Coruja-Finance-v1.3-Fonte-SHA256.txt
 
       - name: Upload complete APK and source
