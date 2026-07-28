@@ -28,7 +28,9 @@ jobs:
             .build-input/corujinha-source3.part01b \
             .build-input/corujinha-source3.part01c \
             .build-input/corujinha-source3.part02 \
-            .build-input/corujinha-source3.part03 \
+            .build-input/corujinha-source3.part03a \
+            .build-input/corujinha-source3.part03b \
+            .build-input/corujinha-source3.part03c \
             .build-input/corujinha-source3.part04 \
             | base64 --decode > corujinha-source.tar.xz
           echo "61e87c528c3ccc1b09a45649e3703d69da2d34304ca521e8cf7fc6a7733f9b30  corujinha-source.tar.xz" | sha256sum --check
