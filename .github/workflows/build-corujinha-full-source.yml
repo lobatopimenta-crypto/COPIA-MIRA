@@ -1,10 +1,11 @@
-name: Build Corujinha Full Source
+name: Build Coruja Finance v1.2
 
 on:
   pull_request:
     branches: [main]
     paths:
       - '.build-input/corujinha-source3.part*'
+      - '.build-input/coruja-v12-overlay.part*'
       - '.github/workflows/build-corujinha-full-source.yml'
   workflow_dispatch:
 
@@ -18,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Reconstruct complete source project
+      - name: Reconstruct complete source and apply v1.2 changes
         shell: bash
         run: |
           set -euo pipefail
@@ -35,10 +36,32 @@ jobs:
             | base64 --decode > corujinha-source.tar.xz
           echo "61e87c528c3ccc1b09a45649e3703d69da2d34304ca521e8cf7fc6a7733f9b30  corujinha-source.tar.xz" | sha256sum --check
           tar -xJf corujinha-source.tar.xz
-          test -f 'Corujinha-Finance-codigo-fonte/app/src/main/java/com/example/MainActivity.kt'
-          test -f 'Corujinha-Finance-codigo-fonte/app/src/main/res/drawable/img_corujinha_app_icon.jpg'
-          ! grep -Rqi 'Importar backup\|Restaurar backup' 'Corujinha-Finance-codigo-fonte/app/src/main/java/com/example/ui/screens/SettingsScreen.kt'
-          grep -Rq 'Corujinha Finance' 'Corujinha-Finance-codigo-fonte/app/src/main'
+
+          cat \
+            .build-input/coruja-v12-overlay.part00 \
+            .build-input/coruja-v12-overlay.part01 \
+            .build-input/coruja-v12-overlay.part02 \
+            .build-input/coruja-v12-overlay.part03 \
+            .build-input/coruja-v12-overlay.part04 \
+            .build-input/coruja-v12-overlay.part05 \
+            .build-input/coruja-v12-overlay.part06 \
+            | base64 --decode > coruja-v12-overlay.tar.xz
+          echo "c3017fce4e0219c46771fc603df8552d71e8a072a0812bdbe5d44facaeb8657a  coruja-v12-overlay.tar.xz" | sha256sum --check
+          tar -xJf coruja-v12-overlay.tar.xz -C Corujinha-Finance-codigo-fonte
+
+          SRC='Corujinha-Finance-codigo-fonte'
+          test -f "$SRC/app/src/main/java/com/example/MainActivity.kt"
+          test -f "$SRC/app/src/main/java/com/example/ui/security/BiometricSecurity.kt"
+          test -f "$SRC/app/src/main/res/drawable/img_corujinha_app_icon.jpg"
+          grep -Rq 'Coruja Finance' "$SRC/app/src/main"
+          ! grep -Rqi 'Entrar com Google' "$SRC/app/src/main"
+          ! grep -Rqi 'Alex Silva\|Salário Mensal' "$SRC/app/src/main"
+          grep -q 'version = 2' "$SRC/app/src/main/java/com/example/data/local/AppDatabase.kt"
+          grep -q 'resetDataToEmpty' "$SRC/app/src/main/java/com/example/data/FinanceRepository.kt"
+          grep -q 'Autenticação biométrica' "$SRC/app/src/main/java/com/example/ui/screens/SettingsScreen.kt"
+          grep -q 'Senha de acesso' "$SRC/app/src/main/java/com/example/ui/screens/SettingsScreen.kt"
+          grep -q 'Receitas' "$SRC/app/src/main/java/com/example/ui/screens/TransactionsScreen.kt"
+          grep -q 'Despesas' "$SRC/app/src/main/java/com/example/ui/screens/TransactionsScreen.kt"
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -73,20 +96,20 @@ jobs:
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           unzip -t "$APK"
-          sha256sum "$APK" | tee Corujinha-Finance-APK-SHA256.txt
-          cp "$APK" Corujinha-Finance-Completo-Final.apk
-          zip -qr Corujinha-Finance-codigo-fonte-completo.zip Corujinha-Finance-codigo-fonte \
+          sha256sum "$APK" | tee Coruja-Finance-v1.2-APK-SHA256.txt
+          cp "$APK" Coruja-Finance-v1.2-Completo.apk
+          zip -qr Coruja-Finance-codigo-fonte-v1.2.zip Corujinha-Finance-codigo-fonte \
             -x '*/.gradle/*' '*/build/*' '*.jks' '*.keystore' '*.p12'
-          sha256sum Corujinha-Finance-codigo-fonte-completo.zip | tee Corujinha-Finance-Fonte-SHA256.txt
+          sha256sum Coruja-Finance-codigo-fonte-v1.2.zip | tee Coruja-Finance-v1.2-Fonte-SHA256.txt
 
       - name: Upload complete APK and source
         uses: actions/upload-artifact@v4
         with:
-          name: Corujinha-Finance-Completo-Final
+          name: Coruja-Finance-v1.2-Completo
           path: |
-            Corujinha-Finance-Completo-Final.apk
-            Corujinha-Finance-codigo-fonte-completo.zip
-            Corujinha-Finance-APK-SHA256.txt
-            Corujinha-Finance-Fonte-SHA256.txt
+            Coruja-Finance-v1.2-Completo.apk
+            Coruja-Finance-codigo-fonte-v1.2.zip
+            Coruja-Finance-v1.2-APK-SHA256.txt
+            Coruja-Finance-v1.2-Fonte-SHA256.txt
           if-no-files-found: error
           retention-days: 7
