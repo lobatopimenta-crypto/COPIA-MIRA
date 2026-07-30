@@ -1,0 +1,159 @@
+name: Build Coruja Finance v1.6
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.build-input/coruja-v13.part*'
+      - '.build-input/coruja-v14-patch.part*'
+      - '.build-input/coruja-v14-components-fix.b64'
+      - '.build-input/coruja-v15-patch.part*'
+      - '.build-input/coruja-v16-patch.part*'
+      - '.github/workflows/build-coruja-finance-v16.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reconstruct v1.3 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .build-input/coruja-v13.part00 .build-input/coruja-v13.part01 .build-input/coruja-v13.part02 .build-input/coruja-v13.part03 .build-input/coruja-v13.part04 .build-input/coruja-v13.part05 .build-input/coruja-v13.part06 .build-input/coruja-v13.part07 | base64 --decode > coruja-v13-source.tar.xz
+          echo "76b9ba4aee4999bf8b167056f055663873f496521412ec5c5b62a879d21d6de3  coruja-v13-source.tar.xz" | sha256sum --check
+          tar -xJf coruja-v13-source.tar.xz
+
+      - name: Apply v1.4 source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .build-input/coruja-v14-patch.part00a .build-input/coruja-v14-patch.part00b .build-input/coruja-v14-patch.part01a .build-input/coruja-v14-patch.part01b .build-input/coruja-v14-patch.part02 .build-input/coruja-v14-patch.part03 | base64 --decode > coruja-v14-patch.tar.xz
+          echo "7a0ff60335a9c536108c9fc0aca8fcedd66122a2bc88a7b3303832bd302c23af  coruja-v14-patch.tar.xz" | sha256sum --check
+          tar -xJf coruja-v14-patch.tar.xz -C Corujinha-Finance-codigo-fonte
+          base64 --decode .build-input/coruja-v14-components-fix.b64 > coruja-v14-components-fix.tar.xz
+          echo "cf702f40c5d42f5a44933313c37166eec862fe0a5a0c32d093c6fcb993d83daf  coruja-v14-components-fix.tar.xz" | sha256sum --check
+          tar -xJf coruja-v14-components-fix.tar.xz -C Corujinha-Finance-codigo-fonte
+
+      - name: Apply v1.5 source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .build-input/coruja-v15-patch.part00 .build-input/coruja-v15-patch.part01a .build-input/coruja-v15-patch.part01b0 .build-input/coruja-v15-patch.part01b10 .build-input/coruja-v15-patch.part01b110 .build-input/coruja-v15-patch.part01b111 .build-input/coruja-v15-patch.part02 .build-input/coruja-v15-patch.part03 > coruja-v15-patch.b64
+          echo "02483c94964d7d10bd3d22a4561709af8a543b8eec0d7e157a1af93c71d5842d  coruja-v15-patch.b64" | sha256sum --check
+          base64 --decode coruja-v15-patch.b64 > coruja-v15-patch.tar.xz
+          echo "7c9dedeacd85208c9c2894f209570d04c18c733a450e5ce745f7bf13b817bb75  coruja-v15-patch.tar.xz" | sha256sum --check
+          tar -xJf coruja-v15-patch.tar.xz -C Corujinha-Finance-codigo-fonte
+          while IFS= read -r path; do
+            rm -f "Corujinha-Finance-codigo-fonte/$path"
+          done < Corujinha-Finance-codigo-fonte/delete-list.txt
+          rm -f Corujinha-Finance-codigo-fonte/delete-list.txt
+
+      - name: Apply v1.6 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "9c18f272680c47608b5ff65a682130c0fb420f884a2b74306815a6963c81b1c5  .build-input/coruja-v16-patch.part00" | sha256sum --check
+          echo "f5ec6f5caca0852bfe62fddc87c047aa56ba13a339c18b95d9f16033baf06f50  .build-input/coruja-v16-patch.part01" | sha256sum --check
+          echo "c55ebd362fc201c306aff33e79350476edeb05dcfea709caf5e2bc8f833dfaa4  .build-input/coruja-v16-patch.part02" | sha256sum --check
+          echo "c93e515e9467253367822537c51f2778b90ecc90eec05b1bfab9f47096c6ed2a  .build-input/coruja-v16-patch.part03" | sha256sum --check
+          echo "743340ce5fa38b7fb7dc93c829efd07719bb14c2e5d6d760be26fd7a469a1c25  .build-input/coruja-v16-patch.part04" | sha256sum --check
+          echo "11169b9acfc9b4438502539c7992fb06e293f0a5c836e8bee32d26a4b48b4d1f  .build-input/coruja-v16-patch.part05" | sha256sum --check
+          echo "914fe93deeb3ae771903f29991f55efb0cfd9c088bcea2c5cf795e417a0941e0  .build-input/coruja-v16-patch.part06" | sha256sum --check
+          cat .build-input/coruja-v16-patch.part00 .build-input/coruja-v16-patch.part01 .build-input/coruja-v16-patch.part02 .build-input/coruja-v16-patch.part03 .build-input/coruja-v16-patch.part04 .build-input/coruja-v16-patch.part05 .build-input/coruja-v16-patch.part06 > coruja-v16-patch.b64
+          echo "f84dc0e77021df695a029a7d4795a416bff76c895bd99f744e46b342b75e0195  coruja-v16-patch.b64" | sha256sum --check
+          base64 --decode coruja-v16-patch.b64 > coruja-v16-patch.tar.xz
+          echo "2efd26ab89b3321063c638eb853ef7dc5e3b0bccf6774c70df6bd3b2bfa6410c  coruja-v16-patch.tar.xz" | sha256sum --check
+          xz -t coruja-v16-patch.tar.xz
+          tar -xJf coruja-v16-patch.tar.xz -C Corujinha-Finance-codigo-fonte
+
+      - name: Validate requested v1.6 features
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC='Corujinha-Finance-codigo-fonte'
+          grep -Fq 'versionName = "1.6"' "$SRC/app/build.gradle.kts"
+          grep -Fq 'versionCode = 7' "$SRC/app/build.gradle.kts"
+          grep -Fq 'cardToEdit: CreditCardEntity?' "$SRC/app/src/main/java/com/example/ui/screens/AddCardDialog.kt"
+          grep -Fq 'edit_card_' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
+          grep -Fq 'delete_card_' "$SRC/app/src/main/java/com/example/ui/components/Components.kt"
+          grep -Fq 'fun updateCreditCard' "$SRC/app/src/main/java/com/example/ui/viewmodel/FinanceViewModel.kt"
+          grep -Fq 'Despesa recorrente' "$SRC/app/src/main/java/com/example/ui/screens/AddEditTransactionDialog.kt"
+          grep -Fq 'Quantidade de meses' "$SRC/app/src/main/java/com/example/ui/screens/AddEditTransactionDialog.kt"
+          grep -Fq 'fun addTransactionSchedule' "$SRC/app/src/main/java/com/example/ui/viewmodel/FinanceViewModel.kt"
+          grep -Fq 'buildInstallmentEntries' "$SRC/app/src/main/java/com/example/ui/viewmodel/FinanceViewModel.kt"
+          grep -Fq 'insertTransactions' "$SRC/app/src/main/java/com/example/data/local/Daos.kt"
+          grep -Fq 'MIGRATION_3_4' "$SRC/app/src/main/java/com/example/data/local/AppDatabase.kt"
+          grep -Fq 'val expenseNature' "$SRC/app/src/main/java/com/example/data/local/Entities.kt"
+          grep -Fq 'label = { Text("Nome") }' "$SRC/app/src/main/java/com/example/ui/screens/SettingsScreen.kt"
+          ! grep -Fq 'Nome Completo' "$SRC/app/src/main/java/com/example/ui/screens/SettingsScreen.kt"
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Build complete installable APK
+        shell: bash
+        working-directory: Corujinha-Finance-codigo-fonte
+        run: |
+          set +e
+          gradle --no-daemon :app:assembleDebug --stacktrace 2>&1 | tee ../Coruja-Finance-v1.6-build.log
+          status=${PIPESTATUS[0]}
+          exit $status
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coruja-Finance-v1.6-build-log
+          path: Coruja-Finance-v1.6-build.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Validate APK and package source
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='Corujinha-Finance-codigo-fonte/app/build/outputs/apk/debug/app-debug.apk'
+          test -f "$APK"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          unzip -t "$APK"
+          cp "$APK" Coruja-Finance-v1.6-Completo.apk
+          zip -qr Coruja-Finance-codigo-fonte-v1.6.zip Corujinha-Finance-codigo-fonte -x '*/.gradle/*' '*/build/*' '*.jks' '*.keystore' '*.p12' '*/.kotlin/*'
+          sha256sum Coruja-Finance-v1.6-Completo.apk | tee Coruja-Finance-v1.6-APK-SHA256.txt
+          sha256sum Coruja-Finance-codigo-fonte-v1.6.zip | tee Coruja-Finance-v1.6-Fonte-SHA256.txt
+
+      - name: Upload APK and source
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coruja-Finance-v1.6-Completo
+          path: |
+            Coruja-Finance-v1.6-Completo.apk
+            Coruja-Finance-codigo-fonte-v1.6.zip
+            Coruja-Finance-v1.6-APK-SHA256.txt
+            Coruja-Finance-v1.6-Fonte-SHA256.txt
+          if-no-files-found: error
+          retention-days: 7
