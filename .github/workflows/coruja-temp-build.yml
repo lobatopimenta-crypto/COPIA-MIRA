@@ -1,0 +1,130 @@
+name: Temporary Coruja Finance APK Build
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  secure-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout temporary branch
+        uses: actions/checkout@v4
+
+      - name: Restore private decryption key
+        id: private-key-cache
+        uses: actions/cache@v4
+        with:
+          path: .coruja-ci/private.pem
+          key: coruja-apk-private-80e889859ef4
+
+      - name: Generate temporary encryption keypair
+        if: steps.private-key-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .coruja-ci
+          umask 077
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out .coruja-ci/private.pem
+
+      - name: Export public encryption key
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl pkey -in .coruja-ci/private.pem -pubout -out .coruja-ci/public.pem
+
+      - name: Upload public encryption key
+        uses: actions/upload-artifact@v4
+        with:
+          name: coruja-public-key-80e889859ef4
+          path: .coruja-ci/public.pem
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Detect encrypted source
+        id: source
+        shell: bash
+        run: |
+          if [[ -f coruja-source.enc && -f coruja-key.enc ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Bootstrap completed; waiting for encrypted source."
+          fi
+
+      - name: Decrypt Android project
+        if: steps.source.outputs.available == 'true'
+        id: decrypt
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .coruja-ci/decrypted
+          umask 077
+          openssl pkeyutl -decrypt \
+            -inkey .coruja-ci/private.pem \
+            -in coruja-key.enc \
+            -pkeyopt rsa_padding_mode:oaep \
+            -pkeyopt rsa_oaep_md:sha256 \
+            -out .coruja-ci/password.txt
+          openssl enc -d -aes-256-cbc -salt -pbkdf2 -iter 200000 \
+            -in coruja-source.enc \
+            -out .coruja-ci/source.zip \
+            -pass file:.coruja-ci/password.txt
+          unzip -q .coruja-ci/source.zip -d .coruja-ci/decrypted
+          PROJECT_DIR="$(find .coruja-ci/decrypted -name settings.gradle.kts -type f -printf '%h\n' | head -n 1)"
+          test -n "$PROJECT_DIR"
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java 21
+        if: steps.source.outputs.available == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        if: steps.source.outputs.available == 'true'
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform 36
+        if: steps.source.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.3.1
+        if: steps.source.outputs.available == 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Compile signed release APK
+        if: steps.source.outputs.available == 'true'
+        shell: bash
+        env:
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Dkotlin.incremental=false
+        run: |
+          set -euo pipefail
+          cd "${{ steps.decrypt.outputs.project_dir }}"
+          gradle --no-daemon --stacktrace clean :app:assembleRelease
+          APK_PATH="$(find app/build/outputs/apk/release -name '*.apk' -type f | head -n 1)"
+          test -n "$APK_PATH"
+          cp "$APK_PATH" "$GITHUB_WORKSPACE/Coruja-Finance-v1.6.apk"
+          apksigner verify --verbose --print-certs "$GITHUB_WORKSPACE/Coruja-Finance-v1.6.apk"
+
+      - name: Upload installable APK
+        if: steps.source.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coruja-Finance-v1.6-Android
+          path: Coruja-Finance-v1.6.apk
+          if-no-files-found: error
+          retention-days: 1
