@@ -6,6 +6,7 @@ SRC="$ROOT/Corujinha-Finance-codigo-fonte"
 
 # Reconstruct the complete v1.7 source while deliberately skipping only the signing-key section.
 awk '/^mkdir -p \.secure$/ { exit } { print }' .build-input/build-v17.sh > /tmp/build-v17-source-only.sh
+sed -i '/^PRIVATE_KEY=/d' /tmp/build-v17-source-only.sh
 chmod +x /tmp/build-v17-source-only.sh
 /tmp/build-v17-source-only.sh
 
