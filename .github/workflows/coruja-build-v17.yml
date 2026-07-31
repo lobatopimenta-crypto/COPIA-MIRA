@@ -1,4 +1,4 @@
-name: Temporary Coruja Finance v1.7 APK Build
+name: Secure Coruja Finance v1.7 APK Build
 
 on:
   pull_request:
@@ -10,11 +10,11 @@ permissions:
   actions: write
 
 jobs:
-  secure-build:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
-      - name: Checkout temporary branch
+      - name: Checkout cache branch
         uses: actions/checkout@v4
 
       - name: Restore private decryption key
@@ -29,33 +29,20 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ steps.private-key-cache.outputs.cache-hit }}" != "true" ]]; then
-            echo "The temporary private key cache was not found." >&2
+            echo "The private signing-decryption key cache is unavailable." >&2
             exit 1
           fi
           test -s .coruja-ci/private.pem
 
-      - name: Decode and decrypt Android project
-        id: decrypt
+      - name: Fetch v1.7 build inputs
         shell: bash
         run: |
           set -euo pipefail
-          base64 -d coruja-v17-key.enc.b64 > .coruja-ci/key.enc
-          cat coruja-v17-source.part-* | base64 -d > .coruja-ci/source.enc
-          openssl pkeyutl -decrypt \
-            -inkey .coruja-ci/private.pem \
-            -in .coruja-ci/key.enc \
-            -pkeyopt rsa_padding_mode:oaep \
-            -pkeyopt rsa_oaep_md:sha256 \
-            -out .coruja-ci/password.txt
-          openssl enc -d -aes-256-cbc -salt -pbkdf2 -iter 200000 \
-            -in .coruja-ci/source.enc \
-            -out .coruja-ci/source.zip \
-            -pass file:.coruja-ci/password.txt
-          mkdir -p .coruja-ci/decrypted
-          unzip -q .coruja-ci/source.zip -d .coruja-ci/decrypted
-          PROJECT_DIR="$(find .coruja-ci/decrypted -name settings.gradle.kts -type f -printf '%h\n' | head -n 1)"
-          test -n "$PROJECT_DIR"
-          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+          git fetch --depth=1 origin build-coruja-finance-v17-final
+          git worktree add "$GITHUB_WORKSPACE/v17-input" FETCH_HEAD
+          chmod +x "$GITHUB_WORKSPACE/v17-input/.build-input/build-v17.sh"
+          cd "$GITHUB_WORKSPACE/v17-input"
+          PRIVATE_KEY="$GITHUB_WORKSPACE/.coruja-ci/private.pem" .build-input/build-v17.sh
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -66,12 +53,11 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android platform 36
+      - name: Install Android platform
         shell: bash
         run: |
-          set -euo pipefail
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
 
       - name: Set up Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
@@ -83,18 +69,36 @@ jobs:
         env:
           GRADLE_OPTS: -Dorg.gradle.daemon=false -Dkotlin.incremental=false
         run: |
-          set -euo pipefail
-          cd "${{ steps.decrypt.outputs.project_dir }}"
-          gradle --no-daemon --stacktrace clean :app:assembleRelease
-          APK_PATH="$(find app/build/outputs/apk/release -name '*.apk' -type f | head -n 1)"
-          test -n "$APK_PATH"
-          cp "$APK_PATH" "$GITHUB_WORKSPACE/Coruja-Finance-v1.7.apk"
-          apksigner verify --verbose --print-certs "$GITHUB_WORKSPACE/Coruja-Finance-v1.7.apk"
+          set -o pipefail
+          cd "$GITHUB_WORKSPACE/v17-input/Corujinha-Finance-codigo-fonte"
+          gradle --no-daemon :app:assembleRelease --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.7-build.log"
 
-      - name: Upload installable APK
+      - name: Verify and package
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="$GITHUB_WORKSPACE/v17-input/Corujinha-Finance-codigo-fonte"
+          APK="$(find "$SRC/app/build/outputs/apk/release" -name '*.apk' -type f | head -n 1)"
+          test -n "$APK"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.7-signature.txt"
+          unzip -t "$APK"
+          cp "$APK" "$GITHUB_WORKSPACE/Coruja-Finance-v1.7.apk"
+          cd "$GITHUB_WORKSPACE/v17-input"
+          zip -qr "$GITHUB_WORKSPACE/Coruja-Finance-codigo-fonte-v1.7.zip" Corujinha-Finance-codigo-fonte \
+            -x '*/.gradle/*' '*/build/*' '*.jks' '*.keystore' '*.p12' '*/.kotlin/*' '*/keystore.properties'
+          sha256sum "$GITHUB_WORKSPACE/Coruja-Finance-v1.7.apk" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.7-SHA256.txt"
+
+      - name: Upload APK, source and diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Coruja-Finance-v1.7-Android
-          path: Coruja-Finance-v1.7.apk
-          if-no-files-found: error
+          path: |
+            Coruja-Finance-v1.7.apk
+            Coruja-Finance-codigo-fonte-v1.7.zip
+            Coruja-Finance-v1.7-SHA256.txt
+            Coruja-Finance-v1.7-signature.txt
+            Coruja-Finance-v1.7-build.log
+          if-no-files-found: warn
           retention-days: 1
