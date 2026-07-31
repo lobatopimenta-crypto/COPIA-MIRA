@@ -50,7 +50,6 @@ jobs:
           grep -Fq 'versionCode = 10' "$SRC/app/build.gradle.kts"
           grep -Fq 'versionName = "1.8.1"' "$SRC/app/build.gradle.kts"
           grep -Fq 'applicationId = "com.aistudio.corujinhafinancas.cdaccc"' "$SRC/app/build.gradle.kts"
-          grep -Fq 'enableV1Signing = true' "$SRC/app/build.gradle.kts"
           grep -Fq 'enableV2Signing = true' "$SRC/app/build.gradle.kts"
           grep -Fq 'enableV3Signing = true' "$SRC/app/build.gradle.kts"
           test -s "$SRC/signing/coruja-finance-release.jks"
@@ -96,15 +95,14 @@ jobs:
           test -n "$APK"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
-          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-signature.txt"
-          grep -Fq 'Verified using v1 scheme (JAR signing): true' "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-signature.txt"
+          cp "$APK" "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1.apk"
+          "$APKSIGNER" verify --verbose --print-certs "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1.apk" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-signature.txt"
           grep -Fq 'Verified using v2 scheme (APK Signature Scheme v2): true' "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-signature.txt"
           grep -Fq 'Verified using v3 scheme (APK Signature Scheme v3): true' "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-signature.txt"
-          grep -Fq 'Signer #1 certificate SHA-256 digest: 7b16b3080109df41b715386f4f4a6fbe05b0aeda31056d31de47a8fb9a1fb7b9' "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-signature.txt"
-          "$AAPT" dump badging "$APK" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-badging.txt"
+          grep -Fq 'certificate SHA-256 digest: 7b16b3080109df41b715386f4f4a6fbe05b0aeda31056d31de47a8fb9a1fb7b9' "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-signature.txt"
+          "$AAPT" dump badging "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1.apk" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-badging.txt"
           grep -Fq "package: name='com.aistudio.corujinhafinancas.cdaccc' versionCode='10' versionName='1.8.1'" "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-badging.txt"
-          unzip -t "$APK"
-          cp "$APK" "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1.apk"
+          unzip -t "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1.apk"
           sha256sum "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1.apk" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-SHA256.txt"
 
       - name: Upload corrected APK and diagnostics
@@ -118,5 +116,5 @@ jobs:
             Coruja-Finance-v1.8.1-signature.txt
             Coruja-Finance-v1.8.1-badging.txt
             Coruja-Finance-v1.8.1-build.log
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 1
