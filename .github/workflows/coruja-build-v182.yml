@@ -1,0 +1,213 @@
+name: Secure Coruja Finance v1.8.2 Navigation Fix
+
+on:
+  pull_request:
+    branches: [main]
+    types: [reopened, synchronize]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout temporary branch
+        uses: actions/checkout@v4
+
+      - name: Restore private decryption key
+        id: private-key-cache
+        uses: actions/cache@v4
+        with:
+          path: .coruja-ci/private.pem
+          key: coruja-apk-private-80e889859ef4
+
+      - name: Require cached private key
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.private-key-cache.outputs.cache-hit }}" != "true" ]]; then
+            echo "Private key cache unavailable for this PR." >&2
+            exit 1
+          fi
+          test -s .coruja-ci/private.pem
+
+      - name: Restore source and apply navigation update
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin 30179a3eb3b9395cfd3d4e3dde76b44c0f45f3b0
+          git worktree add "$GITHUB_WORKSPACE/v182-input" FETCH_HEAD
+          cd "$GITHUB_WORKSPACE/v182-input"
+          chmod +x .build-input/build-v18.sh
+          PRIVATE_KEY="$GITHUB_WORKSPACE/.coruja-ci/private.pem" .build-input/build-v18.sh
+          SRC="$GITHUB_WORKSPACE/v182-input/Corujinha-Finance-codigo-fonte"
+          python3 - "$SRC" <<'PY'
+          from pathlib import Path
+          import sys
+          root = Path(sys.argv[1])
+          main = root / "app/src/main/java/com/example/MainActivity.kt"
+          text = main.read_text()
+          text = text.replace(
+              "import android.os.Bundle\nimport androidx.activity.compose.setContent\n",
+              "import android.os.Bundle\nimport androidx.activity.compose.BackHandler\nimport androidx.activity.compose.setContent\n"
+          )
+          text = text.replace("import androidx.navigation.NavGraph.Companion.findStartDestination\n", "")
+          anchor = "    val isFullscreenRoute = currentRoute == NavRoutes.Splash.route || currentRoute == NavRoutes.Login.route\n\n    Scaffold(\n"
+          replacement = '''    val isFullscreenRoute = currentRoute == NavRoutes.Splash.route || currentRoute == NavRoutes.Login.route
+    val hasOpenEditor = showTransactionDialogType != null || showAddCardDialog || showAddGoalDialog
+
+    fun navigateToMainSection(route: String) {
+        navController.navigate(route) {
+            popUpTo(NavRoutes.Dashboard.route) {
+                inclusive = false
+                saveState = false
+            }
+            launchSingleTop = true
+            restoreState = false
+        }
+    }
+
+    BackHandler(
+        enabled = !isFullscreenRoute && (hasOpenEditor || currentRoute != NavRoutes.Dashboard.route)
+    ) {
+        when {
+            showTransactionDialogType != null -> {
+                showTransactionDialogType = null
+                editingTransaction = null
+            }
+            showAddCardDialog -> {
+                showAddCardDialog = false
+                editingCard = null
+            }
+            showAddGoalDialog -> {
+                showAddGoalDialog = false
+                editingGoal = null
+            }
+            currentRoute != NavRoutes.Dashboard.route -> navigateToMainSection(NavRoutes.Dashboard.route)
+        }
+    }
+
+    Scaffold(
+'''
+          if anchor not in text:
+              raise SystemExit("navigation anchor not found")
+          text = text.replace(anchor, replacement)
+          old_click = '''                            onClick = {
+                                navController.navigate(item.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+'''
+          if old_click not in text:
+              raise SystemExit("bottom navigation anchor not found")
+          text = text.replace(old_click, "                            onClick = { navigateToMainSection(item.route) },\n")
+          text = text.replace(
+              "onNavigateToTransactions = { navController.navigate(NavRoutes.Transactions.route) },",
+              "onNavigateToTransactions = { navigateToMainSection(NavRoutes.Transactions.route) },"
+          )
+          text = text.replace(
+              "onNavigateToAI = { navController.navigate(NavRoutes.CorujinhaAI.route) },",
+              "onNavigateToAI = { navigateToMainSection(NavRoutes.CorujinhaAI.route) },"
+          )
+          main.write_text(text)
+
+          gradle = root / "app/build.gradle.kts"
+          build = gradle.read_text()
+          build = build.replace("versionCode = 9", "versionCode = 11")
+          build = build.replace('versionName = "1.8"', 'versionName = "1.8.2"')
+          gradle.write_text(build)
+
+          (root / "README-ALTERACOES-v1.8.2.txt").write_text('''CORUJA FINANCE v1.8.2 — NAVEGAÇÃO DO BOTÃO VOLTAR
+
+1. O botão Voltar não percorre mais todas as abas visitadas.
+2. Formulários e editores abertos são fechados primeiro.
+3. De qualquer seção principal, Voltar leva diretamente para a tela Início.
+4. Na tela Início, o próximo Voltar encerra o aplicativo pelo comportamento padrão do Android.
+5. A navegação inferior não restaura pilhas antigas nem acumula telas repetidas.
+6. Todas as funcionalidades e dados das versões anteriores foram preservados.
+
+Versão: 1.8.2
+Código da versão: 11
+''')
+          PY
+          grep -Fq 'versionCode = 11' "$SRC/app/build.gradle.kts"
+          grep -Fq 'versionName = "1.8.2"' "$SRC/app/build.gradle.kts"
+          grep -Fq 'applicationId = "com.aistudio.corujinhafinancas.cdaccc"' "$SRC/app/build.gradle.kts"
+          grep -Fq 'import androidx.activity.compose.BackHandler' "$SRC/app/src/main/java/com/example/MainActivity.kt"
+          grep -Fq 'popUpTo(NavRoutes.Dashboard.route)' "$SRC/app/src/main/java/com/example/MainActivity.kt"
+          grep -Fq 'saveState = false' "$SRC/app/src/main/java/com/example/MainActivity.kt"
+          grep -Fq 'restoreState = false' "$SRC/app/src/main/java/com/example/MainActivity.kt"
+          grep -Fq 'currentRoute != NavRoutes.Dashboard.route -> navigateToMainSection(NavRoutes.Dashboard.route)' "$SRC/app/src/main/java/com/example/MainActivity.kt"
+          test -s "$SRC/signing/coruja-finance-release.jks"
+          test -s "$SRC/keystore.properties"
+          echo "project_dir=$SRC" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform and build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Compile signed release APK
+        shell: bash
+        env:
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Dkotlin.incremental=false
+        run: |
+          set -o pipefail
+          cd "${{ steps.source.outputs.project_dir }}"
+          gradle --no-daemon clean :app:assembleRelease --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.2-build.log"
+
+      - name: Verify install compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="${{ steps.source.outputs.project_dir }}"
+          APK="$(find "$SRC/app/build/outputs/apk/release" -name '*.apk' -type f | head -n 1)"
+          test -n "$APK"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.2-signature.txt"
+          grep -Fq 'Verified using v2 scheme (APK Signature Scheme v2): true' "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.2-signature.txt"
+          grep -Fq 'Verified using v3 scheme (APK Signature Scheme v3): true' "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.2-signature.txt"
+          grep -Fq 'certificate SHA-256 digest: 7b16b3080109df41b715386f4f4a6fbe05b0aeda31056d31de47a8fb9a1fb7b9' "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.2-signature.txt"
+          "$AAPT" dump badging "$APK" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.2-badging.txt"
+          grep -Fq "package: name='com.aistudio.corujinhafinancas.cdaccc' versionCode='11' versionName='1.8.2'" "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.2-badging.txt"
+          grep -Fq "sdkVersion:'24'" "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.2-badging.txt"
+          unzip -t "$APK"
+          cp "$APK" "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.2.apk"
+          sha256sum "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.2.apk" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.2-SHA256.txt"
+
+      - name: Upload corrected APK and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coruja-Finance-v1.8.2-Navegacao-Corrigida
+          path: |
+            Coruja-Finance-v1.8.2.apk
+            Coruja-Finance-v1.8.2-SHA256.txt
+            Coruja-Finance-v1.8.2-signature.txt
+            Coruja-Finance-v1.8.2-badging.txt
+            Coruja-Finance-v1.8.2-build.log
+          if-no-files-found: warn
+          retention-days: 1
