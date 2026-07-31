@@ -1,0 +1,76 @@
+name: Build Coruja Finance v1.8 Unsigned
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build-unsigned:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reconstruct Coruja Finance v1.8 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .build-input/build-v18-unsigned.sh
+          .build-input/build-v18-unsigned.sh
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Compile unsigned release APK
+        shell: bash
+        env:
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Dkotlin.incremental=false
+        working-directory: Corujinha-Finance-codigo-fonte
+        run: |
+          set -o pipefail
+          gradle --no-daemon clean :app:assembleRelease --stacktrace 2>&1 | tee ../Coruja-Finance-v1.8-unsigned-build.log
+
+      - name: Validate unsigned APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find Corujinha-Finance-codigo-fonte/app/build/outputs/apk/release -name '*.apk' -type f | head -n 1)"
+          test -n "$APK"
+          unzip -t "$APK"
+          cp "$APK" Coruja-Finance-v1.8-unsigned.apk
+          sha256sum Coruja-Finance-v1.8-unsigned.apk | tee Coruja-Finance-v1.8-unsigned-SHA256.txt
+
+      - name: Upload unsigned APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coruja-Finance-v1.8-Unsigned
+          path: |
+            Coruja-Finance-v1.8-unsigned.apk
+            Coruja-Finance-v1.8-unsigned-SHA256.txt
+            Coruja-Finance-v1.8-unsigned-build.log
+          if-no-files-found: warn
+          retention-days: 1
