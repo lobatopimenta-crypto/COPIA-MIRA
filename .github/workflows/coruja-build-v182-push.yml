@@ -2,10 +2,8 @@ name: Secure Coruja Finance v1.8.4 Signed Build
 
 on:
   push:
-    branches:
-      - temp/coruja-apk-80e889859ef4
-    paths:
-      - .build-input/v184/trigger.txt
+    branches: [temp/coruja-apk-80e889859ef4]
+    paths: [.build-input/v184/trigger.txt]
 
 permissions:
   contents: read
@@ -16,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: Checkout temporary branch
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Restore private decryption key
@@ -26,39 +24,23 @@ jobs:
           path: .coruja-ci/private.pem
           key: coruja-apk-private-80e889859ef4
 
-      - name: Require cached private key
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${{ steps.private-key-cache.outputs.cache-hit }}" != "true" ]]; then
-            echo "Private decryption key cache unavailable." >&2
-            exit 1
-          fi
-          test -s .coruja-ci/private.pem
-
-      - name: Restore encrypted v1.8.4 project
+      - name: Restore encrypted project
         id: source
         shell: bash
         run: |
           set -euo pipefail
+          [[ "${{ steps.private-key-cache.outputs.cache-hit }}" == "true" ]]
+          test -s .coruja-ci/private.pem
           mkdir -p "$GITHUB_WORKSPACE/v184-work"
-          cat .build-input/v184/part-*.b64 | base64 -d > "$GITHUB_WORKSPACE/v184-payload.enc"
-          base64 -d .build-input/v184/keyinfo.b64 > "$GITHUB_WORKSPACE/v184-keyinfo.enc"
-          echo "ae648d750c056cfc6307b565a050eac1500e302a49420612c7bb62a73502f6f3  $GITHUB_WORKSPACE/v184-payload.enc" | sha256sum -c -
-          echo "9491bc289a64e69dbc2939163c9f9fd9e201230516c2cebbfbdb8136d00c64a0  $GITHUB_WORKSPACE/v184-keyinfo.enc" | sha256sum -c -
-          openssl pkeyutl -decrypt \
-            -inkey .coruja-ci/private.pem \
-            -pkeyopt rsa_padding_mode:oaep \
-            -pkeyopt rsa_oaep_md:sha256 \
-            -in "$GITHUB_WORKSPACE/v184-keyinfo.enc" \
-            -out "$GITHUB_WORKSPACE/v184-keyinfo.txt"
-          source "$GITHUB_WORKSPACE/v184-keyinfo.txt"
-          openssl enc -d -aes-256-cbc -nosalt \
-            -K "$KEYHEX" -iv "$IVHEX" \
-            -in "$GITHUB_WORKSPACE/v184-payload.enc" \
-            -out "$GITHUB_WORKSPACE/v184-project.zip"
-          echo "1ea9f2b1a4c09ec2d6a8aba671ee820bc80ba0e714b5ebca5aa046d88530bab6  $GITHUB_WORKSPACE/v184-project.zip" | sha256sum -c -
-          unzip -q "$GITHUB_WORKSPACE/v184-project.zip" -d "$GITHUB_WORKSPACE/v184-work"
+          cat .build-input/v184/part-*.b64 | base64 -d > "$GITHUB_WORKSPACE/payload.enc"
+          base64 -d .build-input/v184/keyinfo.b64 > "$GITHUB_WORKSPACE/keyinfo.enc"
+          echo "425557d5f2dc2cf317526e18c6bfa353df18e88ab4cd8b21fee78d078bfcf1cd  $GITHUB_WORKSPACE/payload.enc" | sha256sum -c -
+          echo "958ad1239c3766509d3e9a1002e25f6e01c65266013ba41a9c6011b031ee4139  $GITHUB_WORKSPACE/keyinfo.enc" | sha256sum -c -
+          openssl pkeyutl -decrypt -inkey .coruja-ci/private.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -in "$GITHUB_WORKSPACE/keyinfo.enc" -out "$GITHUB_WORKSPACE/keyinfo.txt"
+          source "$GITHUB_WORKSPACE/keyinfo.txt"
+          openssl enc -d -aes-256-cbc -nosalt -K "$KEYHEX" -iv "$IVHEX" -in "$GITHUB_WORKSPACE/payload.enc" -out "$GITHUB_WORKSPACE/project.zip"
+          echo "754ede31b475272bd1fff5e094d331b89548b053dbc06476d43814c446b93466  $GITHUB_WORKSPACE/project.zip" | sha256sum -c -
+          unzip -q "$GITHUB_WORKSPACE/project.zip" -d "$GITHUB_WORKSPACE/v184-work"
           SRC="$GITHUB_WORKSPACE/v184-work/Corujinha-Finance-codigo-fonte"
           grep -Fq 'versionCode = 13' "$SRC/app/build.gradle.kts"
           grep -Fq 'versionName = "1.8.4"' "$SRC/app/build.gradle.kts"
@@ -76,7 +58,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android platform and build tools
+      - name: Install Android tools
         shell: bash
         run: |
           set -euo pipefail
@@ -88,7 +70,7 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Compile signed release APK
+      - name: Compile signed release
         shell: bash
         env:
           GRADLE_OPTS: -Dorg.gradle.daemon=false -Dkotlin.incremental=false
@@ -97,7 +79,7 @@ jobs:
           cd "${{ steps.source.outputs.project_dir }}"
           gradle --no-daemon clean :app:assembleRelease --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.4-build.log"
 
-      - name: Verify APK installation compatibility
+      - name: Verify APK
         shell: bash
         run: |
           set -euo pipefail
@@ -117,7 +99,7 @@ jobs:
           cp "$APK" "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.4.apk"
           sha256sum "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.4.apk" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.4-SHA256.txt"
 
-      - name: Upload signed APK and diagnostics
+      - name: Upload APK and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
