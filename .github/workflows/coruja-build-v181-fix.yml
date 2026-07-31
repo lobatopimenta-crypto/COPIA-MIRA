@@ -1,0 +1,122 @@
+name: Secure Coruja Finance v1.8.1 Install Fix
+
+on:
+  pull_request:
+    branches: [main]
+    types: [reopened, synchronize]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout temporary branch
+        uses: actions/checkout@v4
+
+      - name: Restore private decryption key
+        id: private-key-cache
+        uses: actions/cache@v4
+        with:
+          path: .coruja-ci/private.pem
+          key: coruja-apk-private-80e889859ef4
+
+      - name: Require cached private key
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.private-key-cache.outputs.cache-hit }}" != "true" ]]; then
+            echo "Private key cache unavailable for this PR." >&2
+            exit 1
+          fi
+          test -s .coruja-ci/private.pem
+
+      - name: Restore validated v1.8 source and signing files
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin 30179a3eb3b9395cfd3d4e3dde76b44c0f45f3b0
+          git worktree add "$GITHUB_WORKSPACE/v181-input" FETCH_HEAD
+          cd "$GITHUB_WORKSPACE/v181-input"
+          chmod +x .build-input/build-v18.sh
+          PRIVATE_KEY="$GITHUB_WORKSPACE/.coruja-ci/private.pem" .build-input/build-v18.sh
+          SRC="$GITHUB_WORKSPACE/v181-input/Corujinha-Finance-codigo-fonte"
+          sed -i 's/versionCode = 9/versionCode = 10/' "$SRC/app/build.gradle.kts"
+          sed -i 's/versionName = "1.8"/versionName = "1.8.1"/' "$SRC/app/build.gradle.kts"
+          grep -Fq 'versionCode = 10' "$SRC/app/build.gradle.kts"
+          grep -Fq 'versionName = "1.8.1"' "$SRC/app/build.gradle.kts"
+          grep -Fq 'applicationId = "com.aistudio.corujinhafinancas.cdaccc"' "$SRC/app/build.gradle.kts"
+          grep -Fq 'enableV1Signing = true' "$SRC/app/build.gradle.kts"
+          grep -Fq 'enableV2Signing = true' "$SRC/app/build.gradle.kts"
+          grep -Fq 'enableV3Signing = true' "$SRC/app/build.gradle.kts"
+          test -s "$SRC/signing/coruja-finance-release.jks"
+          test -s "$SRC/keystore.properties"
+          echo "project_dir=$SRC" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform and build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Compile properly signed release APK
+        shell: bash
+        env:
+          GRADLE_OPTS: -Dorg.gradle.daemon=false -Dkotlin.incremental=false
+        run: |
+          set -o pipefail
+          cd "${{ steps.source.outputs.project_dir }}"
+          gradle --no-daemon clean :app:assembleRelease --stacktrace 2>&1 | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-build.log"
+
+      - name: Verify install compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="${{ steps.source.outputs.project_dir }}"
+          APK="$(find "$SRC/app/build/outputs/apk/release" -name '*.apk' -type f | head -n 1)"
+          test -n "$APK"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-signature.txt"
+          grep -Fq 'Verified using v1 scheme (JAR signing): true' "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-signature.txt"
+          grep -Fq 'Verified using v2 scheme (APK Signature Scheme v2): true' "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-signature.txt"
+          grep -Fq 'Verified using v3 scheme (APK Signature Scheme v3): true' "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-signature.txt"
+          grep -Fq 'Signer #1 certificate SHA-256 digest: 7b16b3080109df41b715386f4f4a6fbe05b0aeda31056d31de47a8fb9a1fb7b9' "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-signature.txt"
+          "$AAPT" dump badging "$APK" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-badging.txt"
+          grep -Fq "package: name='com.aistudio.corujinhafinancas.cdaccc' versionCode='10' versionName='1.8.1'" "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-badging.txt"
+          unzip -t "$APK"
+          cp "$APK" "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1.apk"
+          sha256sum "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1.apk" | tee "$GITHUB_WORKSPACE/Coruja-Finance-v1.8.1-SHA256.txt"
+
+      - name: Upload corrected APK and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coruja-Finance-v1.8.1-Corrigido
+          path: |
+            Coruja-Finance-v1.8.1.apk
+            Coruja-Finance-v1.8.1-SHA256.txt
+            Coruja-Finance-v1.8.1-signature.txt
+            Coruja-Finance-v1.8.1-badging.txt
+            Coruja-Finance-v1.8.1-build.log
+          if-no-files-found: warn
+          retention-days: 1
