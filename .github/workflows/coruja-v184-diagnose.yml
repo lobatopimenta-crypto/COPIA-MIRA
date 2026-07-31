@@ -1,0 +1,22 @@
+name: Diagnose Coruja Finance v1.8.4 encrypted blocks
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'temp/coruja-apk-80e889859ef4'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print encrypted block hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          wc -c .build-input/v184/part-*.b64 .build-input/v184/keyinfo.b64
+          sha256sum .build-input/v184/part-*.b64 .build-input/v184/keyinfo.b64
