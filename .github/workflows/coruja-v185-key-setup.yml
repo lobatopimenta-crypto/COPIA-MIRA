@@ -1,0 +1,43 @@
+name: Temporary Coruja Finance v1.8.5 encryption key setup
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  key-setup:
+    if: github.head_ref == 'temp/coruja-apk-80e889859ef4'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore or prepare temporary private key cache
+        id: key-cache
+        uses: actions/cache@v4
+        with:
+          path: .coruja-v185/private.pem
+          key: coruja-v185-private-20260801-8f2c
+
+      - name: Generate temporary encryption key when absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .coruja-v185
+          if [[ ! -s .coruja-v185/private.pem ]]; then
+            openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out .coruja-v185/private.pem
+            chmod 600 .coruja-v185/private.pem
+          fi
+          openssl pkey -in .coruja-v185/private.pem -pubout -out coruja-v185-public.pem
+          test -s coruja-v185-public.pem
+
+      - name: Upload temporary public key
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coruja-v1.8.5-Public-Key
+          path: coruja-v185-public.pem
+          retention-days: 1
