@@ -1,0 +1,32 @@
+name: Trigger temporary Coruja Finance v1.8.5 build
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  trigger:
+    if: github.head_ref == 'temp/coruja-apk-80e889859ef4'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout temporary branch
+        uses: actions/checkout@v4
+        with:
+          ref: temp/coruja-apk-80e889859ef4
+          fetch-depth: 1
+
+      - name: Trigger signed APK build
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p .build-input/v185
+          date -u +%Y-%m-%dT%H:%M:%SZ > .build-input/v185/run.txt
+          git add .build-input/v185/run.txt
+          git commit -m "ci: trigger Coruja Finance v1.8.5 build"
+          git push origin HEAD:temp/coruja-apk-80e889859ef4
