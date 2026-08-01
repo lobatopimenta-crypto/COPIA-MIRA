@@ -18,83 +18,68 @@ jobs:
       - name: Checkout temporary branch
         uses: actions/checkout@v4
 
-      - name: Restore private decryption key
-        id: private-key-cache
+      - name: Restore temporary transport key
+        id: transport-key-cache
         uses: actions/cache@v4
         with:
-          path: .coruja-ci/private.pem
-          key: coruja-apk-private-80e889859ef4
+          path: .coruja-v185/private.pem
+          key: coruja-v185-private-20260801-8f2c
 
-      - name: Restore signed v1.8.4 source and remove home photo
+      - name: Reconstruct v1.8.5 source and signing files
         id: source
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ steps.private-key-cache.outputs.cache-hit }}" != "true" ]]; then
-            echo "Private decryption key cache unavailable." >&2
+          if [[ "${{ steps.transport-key-cache.outputs.cache-hit }}" != "true" ]]; then
+            echo "Temporary transport key cache unavailable." >&2
             exit 1
           fi
-          test -s .coruja-ci/private.pem
+          test -s .coruja-v185/private.pem
+
           BASE="$GITHUB_WORKSPACE/v185-base"
           git fetch --depth=1 origin 30179a3eb3b9395cfd3d4e3dde76b44c0f45f3b0
           git worktree add "$BASE" FETCH_HEAD
           cd "$BASE"
-          chmod +x .build-input/build-v18.sh
-          PRIVATE_KEY="$GITHUB_WORKSPACE/.coruja-ci/private.pem" .build-input/build-v18.sh
+          chmod +x .build-input/build-v18-unsigned.sh
+          .build-input/build-v18-unsigned.sh
           SRC="$BASE/Corujinha-Finance-codigo-fonte"
           test -d "$SRC"
-          test -s "$SRC/signing/coruja-finance-release.jks"
-          test -s "$SRC/keystore.properties"
 
-          cat "$GITHUB_WORKSPACE"/.build-input/v184/part-*.b64 | base64 -d > "$GITHUB_WORKSPACE/v184-delta.enc"
-          base64 -d "$GITHUB_WORKSPACE/.build-input/v184/keyinfo.b64" > "$GITHUB_WORKSPACE/v184-keyinfo.enc"
-          echo "c0da7d7d16901aa9d66bae29369935ef9f9eb40497c27fcf45035da3f18cf8fc  $GITHUB_WORKSPACE/v184-delta.enc" | sha256sum -c -
-          echo "26bad22ae14622a6e9013691c883d441943e6bd01e4f96fd4f6c33561b334dff  $GITHUB_WORKSPACE/v184-keyinfo.enc" | sha256sum -c -
+          cat "$GITHUB_WORKSPACE"/.build-input/v185-final/part-*.b64 | base64 -d > "$GITHUB_WORKSPACE/v185-delta.enc"
+          base64 -d "$GITHUB_WORKSPACE/.build-input/v185-final/keyinfo.b64" > "$GITHUB_WORKSPACE/v185-keyinfo.enc"
+          echo "542e5e9f79ebc853fa154621b9239834f1fe1c00cd64ea89a2801891320078c1  $GITHUB_WORKSPACE/v185-delta.enc" | sha256sum -c -
+          echo "20a37b0c15f8c8ee9768fd817c2bcdccd12ae247ddd063d0a6fc5b6cc4bd26fb  $GITHUB_WORKSPACE/v185-keyinfo.enc" | sha256sum -c -
           openssl pkeyutl -decrypt \
-            -inkey "$GITHUB_WORKSPACE/.coruja-ci/private.pem" \
+            -inkey "$GITHUB_WORKSPACE/.coruja-v185/private.pem" \
             -pkeyopt rsa_padding_mode:oaep \
             -pkeyopt rsa_oaep_md:sha256 \
-            -in "$GITHUB_WORKSPACE/v184-keyinfo.enc" \
-            -out "$GITHUB_WORKSPACE/v184-keyinfo.txt"
-          source "$GITHUB_WORKSPACE/v184-keyinfo.txt"
+            -in "$GITHUB_WORKSPACE/v185-keyinfo.enc" \
+            -out "$GITHUB_WORKSPACE/v185-keyinfo.txt"
+          source "$GITHUB_WORKSPACE/v185-keyinfo.txt"
           openssl enc -d -aes-256-cbc -nosalt \
             -K "$KEYHEX" -iv "$IVHEX" \
-            -in "$GITHUB_WORKSPACE/v184-delta.enc" \
-            -out "$GITHUB_WORKSPACE/v184-delta.tar.xz"
-          echo "5dde3f7af4c531f00c1dcb394a6f62379e3a858fe4835cc8c7113b08f3a3663e  $GITHUB_WORKSPACE/v184-delta.tar.xz" | sha256sum -c -
-          tar -xJf "$GITHUB_WORKSPACE/v184-delta.tar.xz" -C "$SRC"
+            -in "$GITHUB_WORKSPACE/v185-delta.enc" \
+            -out "$GITHUB_WORKSPACE/v185-delta.tar.xz"
+          echo "5c66389e5536ba8220962ee7a9af48a7937e98e93e0132623e10c04a3169c6e2  $GITHUB_WORKSPACE/v185-delta.tar.xz" | sha256sum -c -
+          tar -xJf "$GITHUB_WORKSPACE/v185-delta.tar.xz" -C "$SRC"
 
-          python3 - "$SRC" <<'PY'
-          from pathlib import Path
-          import sys
-          root = Path(sys.argv[1])
-          dashboard = root / "app/src/main/java/com/example/ui/screens/DashboardScreen.kt"
-          text = dashboard.read_text(encoding="utf-8")
-          start_marker = "            // 2. Corujinha destaque na página inicial\n"
-          end_marker = "            // 3. Monthly Savings Card (Economia do Mês)\n"
-          if start_marker not in text or end_marker not in text:
-              raise SystemExit("Home photo block was not found")
-          start = text.index(start_marker)
-          end = text.index(end_marker, start)
-          text = text[:start] + "            // 2. Monthly Savings Card (Economia do Mês)\n" + text[end + len(end_marker):]
-          text = text.replace("// 4. Corujinha AI Insights Widget Banner", "// 3. Corujinha AI Insights Widget Banner")
-          text = text.replace("// 5. Financial Distribution Chart", "// 4. Financial Distribution Chart")
-          text = text.replace("// 6. Recent Transactions Section Header", "// 5. Recent Transactions Section Header")
-          dashboard.write_text(text, encoding="utf-8")
-          gradle = root / "app/build.gradle.kts"
-          build = gradle.read_text(encoding="utf-8")
-          build = build.replace("versionCode = 13", "versionCode = 14")
-          build = build.replace('versionName = "1.8.4"', 'versionName = "1.8.5"')
-          gradle.write_text(build, encoding="utf-8")
-          (root / "README-ALTERACOES-v1.8.5.txt").write_text(
-              "CORUJA FINANCE v1.8.5\n\n"
-              "- Mantidas todas as alterações anteriores.\n"
-              "- Removida a foto grande da coruja da página inicial.\n"
-              "- A foto permanece no perfil do aplicativo.\n"
-              "- Versão 1.8.5, código 14.\n",
-              encoding="utf-8"
-          )
-          PY
+          base64 -d "$GITHUB_WORKSPACE/.build-input/v185-final/signing.b64" > "$GITHUB_WORKSPACE/v185-signing.enc"
+          base64 -d "$GITHUB_WORKSPACE/.build-input/v185-final/signing-keyinfo.b64" > "$GITHUB_WORKSPACE/v185-signing-keyinfo.enc"
+          echo "9b89dc626cca9d53236d47cbc0a87fbd2efc062fc2da113c547f81c3a68fa0c4  $GITHUB_WORKSPACE/v185-signing.enc" | sha256sum -c -
+          echo "8cf4fb6caf08c8778f1255a73b26e5a62d2ee5533e78faf3dae574730520f91c  $GITHUB_WORKSPACE/v185-signing-keyinfo.enc" | sha256sum -c -
+          openssl pkeyutl -decrypt \
+            -inkey "$GITHUB_WORKSPACE/.coruja-v185/private.pem" \
+            -pkeyopt rsa_padding_mode:oaep \
+            -pkeyopt rsa_oaep_md:sha256 \
+            -in "$GITHUB_WORKSPACE/v185-signing-keyinfo.enc" \
+            -out "$GITHUB_WORKSPACE/v185-signing-keyinfo.txt"
+          source "$GITHUB_WORKSPACE/v185-signing-keyinfo.txt"
+          openssl enc -d -aes-256-cbc -nosalt \
+            -K "$KEYHEX" -iv "$IVHEX" \
+            -in "$GITHUB_WORKSPACE/v185-signing.enc" \
+            -out "$GITHUB_WORKSPACE/v185-signing.tar.xz"
+          echo "82c10a557a6bac23e17fe62727192730a63ee65e5e44451ee1bccfb56f95dba9  $GITHUB_WORKSPACE/v185-signing.tar.xz" | sha256sum -c -
+          tar -xJf "$GITHUB_WORKSPACE/v185-signing.tar.xz" -C "$SRC"
 
           [[ -f "$SRC/.env" ]] || cp "$SRC/.env.example" "$SRC/.env"
           grep -Fq 'versionCode = 14' "$SRC/app/build.gradle.kts"
@@ -105,6 +90,8 @@ jobs:
           grep -Fq 'img_corujinha_home_profile' "$SRC/app/src/main/java/com/example/ui/screens/SettingsScreen.kt"
           grep -Fq 'Editar' "$SRC/app/src/main/java/com/example/ui/screens/CardsScreen.kt"
           grep -Fq 'Excluir' "$SRC/app/src/main/java/com/example/ui/screens/CardsScreen.kt"
+          test -s "$SRC/signing/coruja-finance-release.jks"
+          test -s "$SRC/keystore.properties"
           echo "project_dir=$SRC" >> "$GITHUB_OUTPUT"
 
       - name: Set up Java 21
